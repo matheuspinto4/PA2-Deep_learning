@@ -8,10 +8,14 @@ __pycache__/
 data/
 *.zip
 
-# checkpoints grandes (deixamos só os pequenos / um link no README)
+# checkpoints grandes ficam fora do git (link no README); os pequenos
+# (o MotionGRU da Parte 2 tem ~58KB cada) são versionados normalmente --
+# listados explicitamente abaixo em vez de bloqueados por padrão.
 checkpoints/*.pt
 checkpoints/*.pth
 !checkpoints/.gitkeep
+!checkpoints/motion_gru_mot17.pt
+!checkpoints/motion_gru_pretrain_synthetic.pt
 
 outputs/**/*.mp4
 outputs/**/*.avi
