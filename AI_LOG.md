@@ -72,7 +72,48 @@ explicar por que esse é exatamente IDFN+IDFP para aquele par antes de seguir
 em frente, porque sem entender isso eu não ia conseguir defender o código na
 apresentação.
 
+## Parte 1 — baseline no MOT17 real
+
+**Dados.** Descobri (pedindo pro Claude checar com `curl -I`) que o servidor
+do motchallenge.net responde `Accept-Ranges: bytes`, o que permite usar a
+lib `remotezip` pra ler só os arquivos específicos de dentro do
+`MOT17.zip` de 5.5GB sem baixar o arquivo inteiro — baixei só 4 sequências
+(texto completo + imagens) em vez do pacote inteiro. Antes de escolher
+*quais* 4 sequências, pedi pra computar densidade real (pedestres/quadro)
+das 7 sequências de treino a partir do `gt.txt` (não confiar só em
+descrição de memória da literatura) — os números (MOT17-02: 31.0,
+MOT17-04: 45.3, MOT17-09: 10.1, MOT17-11: 10.5, etc.) é que guiaram a
+escolha do split, documentada no README.
+
+**Detector público padrão.** Em vez de escolher DPM/FRCNN/SDP só por
+reputação ("SDP costuma ser o melhor"), pedi pra calcular AP de verdade
+(Average Precision, IoU≥0.5) contra o gt nas 4 sequências baixadas. SDP
+venceu nas 4, não só na média — decisão com número, não com achismo.
+Implementamos o AP do zero (`pa2/detection_metrics.py`, estilo de
+interpolação "all-point" do VOC2012/COCO) com testes de sanidade antes de
+confiar nele pra essa decisão.
+
+**Detector do torchvision em CPU é lento.** Faster R-CNN pré-treinado
+levou ~5.3s/quadro em CPU numa imagem 1920x1080. Rodar nas ~600-1050
+imagens de cada sequência levaria horas por sequência só pra essa
+comparação secundária (a fonte pública continua sendo a "fonte padrão do
+resto do PA", o enunciado só pede pra também *usar* o torchvision, não pra
+ele carregar o resto do projeto). Decidi (e documentei no próprio script)
+amostrar 40 quadros igualmente espaçados por sequência em vez de rodar em
+tudo — mantém a comparação estatisticamente razoável sem inviabilizar o
+tempo. Resultado interessante pra apresentação: nos 40 quadros testados do
+MOT17-02, o torchvision (AP=0.397) ficou quase empatado com o SDP
+(AP=0.408), mesmo sendo um detector genérico nunca ajustado pro MOT17.
+
+**Reaproveitamento confirmado.** O tracker ingénuo da Parte 0 (item 4,
+`pa2/baseline_tracker.py`) foi usado em produção aqui sem nenhuma mudança —
+só trocou a fonte dos dados (sintético -> MOT17 real). Os números pioraram
+muito (IDF1 caiu pra 0.36-0.65, switches na casa das centenas pra sequências
+densas) — exatamente o "fracasso" que a Parte 1 pede pra quantificar, e que
+motiva a Parte 2.
+
 ## Próximas entradas
 
-Vamos continuar registrando aqui conforme avançamos para a Parte 1 (baseline
-por quadro com detecções do MOT17), Parte 2 (RNN de movimento) em diante.
+Vamos continuar registrando aqui conforme avançamos para a Parte 2 (RNN de
+movimento) em diante. Falta ainda rodar a comparação torchvision-vs-público
+nas outras 3 sequências assim que o download das imagens terminar.

@@ -43,6 +43,19 @@ SEQUENCES = {
 DET_VARIANTS = ["DPM", "FRCNN", "SDP"]
 IMG_GT_VARIANT = "FRCNN"
 
+# o servidor do motchallenge.net tem outages intermitentes (timeouts de
+# conexão, não só quedas de uma conexão já aberta) -- timeout explícito pra
+# falhar rápido e tentar de novo, em vez de pendurar indefinidamente
+# (timeout=None é o default do requests/remotezip), e backoff crescente
+# porque às vezes o servidor fica fora por mais que alguns segundos.
+FETCH_TIMEOUT = 30
+RETRY_TRIES = 6
+RETRY_BASE_DELAY = 5
+
+
+def remote_zip(**kwargs):
+    return RemoteZip(ZIP_URL, timeout=FETCH_TIMEOUT, **kwargs)
+
 
 def remote_entries_for(seq_num: str):
     base = f"MOT17/train/MOT17-{seq_num}"
@@ -52,14 +65,15 @@ def remote_entries_for(seq_num: str):
     return entries, base
 
 
-def fetch_with_retry(fn, tries=4, delay=3):
+def fetch_with_retry(fn, tries=RETRY_TRIES, base_delay=RETRY_BASE_DELAY):
     last_err = None
     for attempt in range(tries):
         try:
             return fn()
-        except Exception as e:  # conexão longa pode cair; reabrir do zero
+        except Exception as e:  # conexão longa pode cair ou nem conectar; reabrir do zero
             last_err = e
-            print(f"    retry {attempt + 1}/{tries} após erro: {e}")
+            delay = base_delay * (2**attempt)
+            print(f"    retry {attempt + 1}/{tries} após erro ({e.__class__.__name__}: {e}); esperando {delay}s...")
             time.sleep(delay)
     raise last_err
 
@@ -74,7 +88,7 @@ def download_sequence(seq_num: str, split: str, with_images: bool = True):
     print(f"[{seq_num}/{split}] baixando seqinfo.ini, gt.txt, det.txt (3 variantes)...")
 
     def do_text():
-        with RemoteZip(ZIP_URL) as z:
+        with remote_zip() as z:
             data_seqinfo = z.read(f"{base}-{IMG_GT_VARIANT}/seqinfo.ini")
             data_gt = z.read(f"{base}-{IMG_GT_VARIANT}/gt/gt.txt")
             data_dets = {v: z.read(f"{base}-{v}/det/det.txt") for v in DET_VARIANTS}
@@ -93,7 +107,7 @@ def download_sequence(seq_num: str, split: str, with_images: bool = True):
         existing = {p.name for p in img_dest.glob("*.jpg")}
 
         def list_images():
-            with RemoteZip(ZIP_URL) as z:
+            with remote_zip() as z:
                 return [n for n in z.namelist() if n.startswith(f"{base}-{IMG_GT_VARIANT}/img1/") and n.endswith(".jpg")]
 
         names = fetch_with_retry(list_images)
@@ -105,10 +119,16 @@ def download_sequence(seq_num: str, split: str, with_images: bool = True):
             batch = todo[i : i + batch_size]
 
             def do_batch(batch=batch):
-                with RemoteZip(ZIP_URL) as z:
+                with remote_zip() as z:
                     for name in batch:
+                        # idempotente por imagem: se uma tentativa anterior do
+                        # MESMO lote já escreveu essa imagem antes de falhar
+                        # numa imagem seguinte, não baixa de novo ao reter-tar.
+                        dest_path = img_dest / Path(name).name
+                        if dest_path.exists():
+                            continue
                         data = z.read(name)
-                        (img_dest / Path(name).name).write_bytes(data)
+                        dest_path.write_bytes(data)
 
             fetch_with_retry(do_batch)
             print(f"    {min(i + batch_size, len(todo))}/{len(todo)}")
@@ -118,6 +138,18 @@ def download_sequence(seq_num: str, split: str, with_images: bool = True):
 
 if __name__ == "__main__":
     only_text = "--text-only" in sys.argv
+    failed = []
     for seq_num, split in SEQUENCES.items():
-        download_sequence(seq_num, split, with_images=not only_text)
-    print("\nFeito. Dados em", DATA_DIR)
+        try:
+            download_sequence(seq_num, split, with_images=not only_text)
+        except Exception as e:
+            failed.append(seq_num)
+            print(f"[{seq_num}/{split}] FALHOU depois de {RETRY_TRIES} tentativas ({e.__class__.__name__}: {e}).")
+            print(f"[{seq_num}/{split}] seguindo para a próxima sequência -- rode o script de novo depois "
+                  f"pra retomar essa (as imagens já baixadas não são refeitas).")
+
+    if failed:
+        print(f"\nTerminou com {len(failed)} sequência(s) incompleta(s): {failed}. "
+              f"Rode o mesmo comando de novo mais tarde -- o download retoma de onde parou.")
+    else:
+        print("\nFeito. Dados em", DATA_DIR)
