@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.ipynb_checkpoints/
+
+# dados baixados do MOT17 (grandes, não vão pro git)
+data/MOT17/
+data/MOT17-annotations/
+*.zip
+
+# checkpoints grandes (deixamos só os pequenos / um link no README)
+checkpoints/*.pt
+checkpoints/*.pth
+!checkpoints/.gitkeep
+
+outputs/**/*.mp4
+outputs/**/*.avi
