@@ -10,12 +10,13 @@ import sys
 from pathlib import Path
 
 import numpy as np
+import pytest
 import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from pa2.baseline_tracker import NaiveIoUTracker  # noqa: E402
-from pa2.models.motion_rnn import MotionGRU  # noqa: E402
+from pa2.models.motion_rnn import MotionRNN  # noqa: E402
 from pa2.motion_tracker import MotionRNNTracker  # noqa: E402
 
 BOX_A = np.array([10.0, 10.0, 20.0, 20.0])
@@ -37,7 +38,8 @@ def build_detections():
     }
 
 
-def test_motion_tracker_com_pesos_zero_reproduz_o_tracker_ingenuo():
+@pytest.mark.parametrize("cell_type", ["rnn", "lstm", "gru"])
+def test_motion_tracker_com_pesos_zero_reproduz_o_tracker_ingenuo(cell_type):
     dets = build_detections()
     det_by_frame = {f: boxes for f, (boxes, _) in dets.items()}
     score_by_frame = {f: scores for f, (_, scores) in dets.items()}
@@ -46,7 +48,7 @@ def test_motion_tracker_com_pesos_zero_reproduz_o_tracker_ingenuo():
     naive_result = naive.run(det_by_frame)
 
     torch.manual_seed(0)
-    model = MotionGRU(hidden_size=8)
+    model = MotionRNN(cell_type=cell_type, hidden_size=8)
     motion = MotionRNNTracker(model, iou_threshold=0.3, max_age=5, match_method="hungarian")
     motion_result = motion.run(det_by_frame, score_by_frame)
 

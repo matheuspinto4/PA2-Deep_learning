@@ -1,14 +1,19 @@
-"""Parte 2, Trilha A — tracker que usa o MotionGRU no lugar da hipótese de
-velocidade zero do tracker ingênuo (pa2/baseline_tracker.py).
+"""Parte 2, Trilha A — tracker que usa o MotionRNN (Parte 3: RNN simples,
+LSTM ou GRU, mesma interface) no lugar da hipótese de velocidade zero do
+tracker ingênuo (pa2/baseline_tracker.py).
 
 Única diferença estrutural em relação ao NaiveIoUTracker: a associação usa
 IoU entre a CAIXA PREVISTA pela rede (não a última caixa observada) e as
 detecções do quadro atual. Nascimento/morte de track seguem a mesma regra
 (ID novo pra detecção sem par, morte após `max_age` quadros sem
-observação). Quando uma track não casa com nada no quadro, o estado da GRU
-roda pra frente em free-running (alimentando a própria previsão anterior,
-confiança 0) -- exatamente o mecanismo de pa2/models/motion_rnn.py, usado
-de forma idêntica aqui e no treino.
+observação). Quando uma track não casa com nada no quadro, o estado da
+célula recorrente roda pra frente em free-running (alimentando a própria
+previsão anterior, confiança 0) -- exatamente o mecanismo de
+pa2/models/motion_rnn.py, usado de forma idêntica aqui e no treino.
+
+Esse tracker é agnóstico a qual célula o modelo usa: `tr.state` é só
+repassado pra frente e pra trás de `model.step()` sem o tracker nunca olhar
+dentro dele -- uma tupla (h,) pra RNN/GRU, (h,c) pra LSTM.
 """
 
 from __future__ import annotations
@@ -25,8 +30,8 @@ from pa2.association import greedy_match, hungarian_match
 @dataclass
 class _MotionTrack:
     track_id: int
-    h: torch.Tensor  # (1, hidden_size)
-    pred_box: torch.Tensor  # (4,) -- previsão feita no passo anterior pra ESTE quadro
+    state: tuple  # (h,) p/ RNN/GRU ou (h,c) p/ LSTM -- opaco pro tracker
+    pred_box: object  # (4,) -- previsão feita no passo anterior pra ESTE quadro
     time_since_update: int = 0
     hits: int = 1
 
@@ -69,8 +74,8 @@ class MotionRNNTracker:
             tr = self.tracks[tid]
             box_t = torch.from_numpy(detections[col]).unsqueeze(0)
             conf_t = torch.tensor([scores[col]], dtype=torch.float32)
-            h_new, pred_next = self.model.step(tr.h, box_t, conf_t)
-            tr.h = h_new
+            new_state, pred_next = self.model.step(tr.state, box_t, conf_t)
+            tr.state = new_state
             tr.pred_box = pred_next.squeeze(0)
             tr.time_since_update = 0
             tr.hits += 1
@@ -80,8 +85,8 @@ class MotionRNNTracker:
             tr = self.tracks[tid]
             box_t = tr.pred_box.unsqueeze(0)  # free-running: entra com a própria previsão
             conf_t = torch.zeros(1, dtype=torch.float32)
-            h_new, pred_next = self.model.step(tr.h, box_t, conf_t)
-            tr.h = h_new
+            new_state, pred_next = self.model.step(tr.state, box_t, conf_t)
+            tr.state = new_state
             tr.pred_box = pred_next.squeeze(0)
             tr.time_since_update += 1
 
@@ -93,11 +98,11 @@ class MotionRNNTracker:
         for col in unmatched_dets:
             tid = self._next_id
             self._next_id += 1
-            h0 = self.model.init_hidden(1)
+            state0 = self.model.init_hidden(1)
             box_t = torch.from_numpy(detections[col]).unsqueeze(0)
             conf_t = torch.tensor([scores[col]], dtype=torch.float32)
-            h_new, pred_next = self.model.step(h0, box_t, conf_t)
-            self.tracks[tid] = _MotionTrack(track_id=tid, h=h_new, pred_box=pred_next.squeeze(0))
+            new_state, pred_next = self.model.step(state0, box_t, conf_t)
+            self.tracks[tid] = _MotionTrack(track_id=tid, state=new_state, pred_box=pred_next.squeeze(0))
             new_track_ids.append(tid)
 
         outputs = []
