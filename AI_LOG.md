@@ -187,7 +187,36 @@ tenta extrapolar movimento, não só congela), e pedestres de verdade no
 MOT17 não se movem em linha reta perfeita, então é lá que um modelo não
 linear aprendido tem chance real de ganhar de um filtro linear simples.
 
+**Avaliação final — achado mais importante da Parte 2.** Depois de treinar
+no MOT17-02 e avaliar nas 4 sequências com a mesma fonte de detecção (SDP)
+da Parte 1, a melhora de IDF1 foi pequena ou nula (e piorou no MOT17-02).
+Antes de aceitar isso como "não funcionou" sem entender por quê, pedi pra
+investigar a causa mecanística. A hipótese: será que pedestres de verdade
+se movem rápido o suficiente, por quadro, pra um modelo de movimento fazer
+diferença? Medimos o deslocamento do centro da caixa entre quadros
+consecutivos relativo à própria largura (a mesma grandeza que o sweep de
+velocidade da Parte 0 varia) nas 4 sequências do MOT17 real, e comparamos
+com os mesmos vídeos sintéticos do sweep. Resultado: os pedestres do MOT17
+se deslocam entre 1% e 3.7% da própria largura por quadro — isso é **igual
+ou menor** que a velocidade mais BAIXA testada no sweep sintético (0.5
+px/quadro = 3.0% de deslocamento relativo), onde o próprio Parte 0 já tinha
+mostrado que o tracker ingênuo vai bem (IDF1~0.82). Nenhuma das 4 sequências
+chega perto do regime onde o sweep mostrou o baseline quebrar de verdade
+(IDF1~0.55, deslocamento relativo 15.3%).
+
+Isso muda completamente a interpretação do resultado: não é que o MotionGRU
+"não funcionou" — é que, a 30fps, a hipótese de velocidade zero do tracker
+ingênuo já era quase ótima pros pedestres do MOT17, então não havia muito
+espaço pra um modelo de movimento melhorar. O gargalo real que a Parte 1
+expôs (switches e fragmentação explodindo em cenas densas) vem de outro
+lugar: ambiguidade de identidade entre pessoas próximas e morte de track
+por oclusão longa — nenhum dos dois é resolvido por um modelo que só prevê
+POSIÇÃO, sem nenhuma informação de APARÊNCIA (exatamente o que a Trilha B,
+que não escolhemos, atacaria). Isso vira um ponto central e defensável da
+apresentação: entender os limites do que a trilha escolhida pode resolver é
+tão importante quanto o número de IDF1 em si.
+
 ## Próximas entradas
 
-Vamos continuar registrando aqui conforme avançamos para o treino no MOT17
-e a construção do tracker baseado no MotionGRU.
+Vamos continuar registrando aqui conforme avançamos para a Parte 3
+(ablação da célula recorrente) em diante.

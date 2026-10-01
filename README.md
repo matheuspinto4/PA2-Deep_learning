@@ -100,8 +100,17 @@ baixadas; pode ser reexecutado conforme o download avança):
 python scripts/part1_torchvision_detector.py
 ```
 
-(demais comandos — treino e avaliação do modelo temporal — serão adicionados
-conforme a Parte 2 for implementada.)
+Parte 2 — pré-treino no sintético, treino no MOT17, e avaliação/comparação
+com a Parte 1 (nessa ordem; cada um depende do checkpoint do anterior):
+
+```bash
+python scripts/part2_pretrain_synthetic.py   # -> checkpoints/motion_gru_pretrain_synthetic.pt
+python scripts/part2_train_mot17.py          # -> checkpoints/motion_gru_mot17.pt
+python scripts/part2_evaluate.py             # métricas + figuras de comparação
+```
+
+(demais comandos — ablação da Parte 3 em diante — serão adicionados
+conforme forem implementados.)
 
 ## Decisões registradas
 
@@ -198,3 +207,74 @@ Esses dois hiperparâmetros (`iou_threshold`, `max_age`) foram fixados a
 partir do piso fácil da Parte 0 e não foram re-ajustados para o MOT17 — o
 objetivo da Parte 1 é expor o fracasso dessa regra simples em dado real
 (ver `outputs/part1/01_descolamento.png`), não otimizá-la.
+
+## Parte 2 — Trilha A: RNN como modelo de movimento
+
+**Arquitetura** (`pa2/models/motion_rnn.py`): um `GRUCell` por track.
+Entrada a cada quadro = caixa `(x,y,w,h)` normalizada pelo tamanho da
+imagem + confiança (score do detector na inferência; visibilidade do gt no
+treino, ver justificativa em `pa2/trajectories.py`). A saída é um
+**resíduo** somado à caixa de entrada (previsão "tipo velocidade", melhor
+condicionada numericamente que prever posição absoluta). Perda smooth-L1
+sobre a caixa; sem incerteza/log-verossimilhança por enquanto.
+
+**Oclusão.** Quando uma track não tem observação real num quadro, o estado
+roda "para frente" alimentando a **própria previsão anterior** (não a caixa
+verdadeira) com confiança 0 — isso é implementado por uma única função
+(`MotionGRU.rollout`) usada de forma idêntica no treino (decidindo via
+limiar de visibilidade do gt se um quadro "conta como observado") e na
+inferência via `pa2/motion_tracker.MotionRNNTracker` (decidindo pela
+presença de uma detecção casada).
+
+**Teste de regressão:** com a cabeça de saída recém-inicializada (zerada,
+delta=0 sempre), o `MotionRNNTracker` reproduz **exatamente** a saída do
+`NaiveIoUTracker` da Parte 1 nas mesmas detecções — confirma que a troca de
+"última posição observada" por "posição prevista" foi implementada
+corretamente, antes de qualquer treino real entrar em cena
+(`tests/test_motion_tracker.py`).
+
+**Treino em duas etapas:**
+1. Pré-treino no sintético da Parte 0 (`scripts/part2_pretrain_synthetic.py`,
+   60 vídeos de treino + 10 de validação nunca vistos, 200 épocas). Achado
+   honesto: no cenário sintético sem ruído, o objeto roteirizado se move em
+   linha reta perfeita, então uma extrapolação de velocidade constante tem
+   erro ~0 — o GRU aprendido fica *atrás* até do baseline trivial de
+   "posição congelada" nesse caso específico (ver AI_LOG.md). O objetivo
+   desta etapa não era bater esse número, e sim confirmar que o modelo
+   aprende a tarefa certa antes de ir pro MOT17 real.
+2. Treino no MOT17 (`scripts/part2_train_mot17.py`): trajetórias de gt do
+   MOT17-02 (treino, 57 trajetórias), validação em MOT17-09 — a mesma
+   divisão de sequências da Parte 1. Começa do checkpoint sintético (warm
+   start). Overfitting claro depois da época ~25 (treino quase zero, val
+   piora) — mitigado com early stopping (guarda a melhor época por
+   validação) + weight decay leve. Checkpoint final:
+   `checkpoints/motion_gru_mot17.pt`.
+
+**Avaliação e comparação com a Parte 1** (`scripts/part2_evaluate.py`,
+mesma fonte de detecção SDP, mesmas 4 sequências,
+`outputs/part2/04_comparacao_parte1_vs_parte2.png`):
+
+| Sequência | IDF1 baseline | IDF1 MotionGRU | switches baseline | switches MotionGRU |
+|---|---|---|---|---|
+| MOT17-09 | 0.476 | 0.493 | 56 | 63 |
+| MOT17-11 | 0.574 | 0.572 | 140 | 144 |
+| MOT17-02 | 0.355 | 0.323 | 334 | 365 |
+| MOT17-04 | 0.647 | 0.655 | 199 | 210 |
+
+**O resultado é honesto: a melhora é pequena ou nula** (e até piora no
+MOT17-02). Investigamos a causa mecanística (`outputs/part2/05_deslocamento_relativo_mot17.png`):
+medimos o deslocamento mediano do centro da caixa entre quadros
+consecutivos, relativo à própria largura da caixa — a mesma grandeza que o
+sweep de dificuldade da Parte 0 varia no eixo "velocidade". No sweep
+sintético, a velocidade mais baixa testada (0.5 px/quadro, onde o baseline
+ingênuo já ia bem, IDF1~0.82) corresponde a um deslocamento relativo de
+0.030; o ponto onde o baseline começa a quebrar de verdade (IDF1~0.55) fica
+em 0.153. **As 4 sequências do MOT17 medem entre 0.010 e 0.037** — todas no
+regime "fácil" do sweep, nenhuma chega perto do regime onde velocidade
+quebra o tracker ingênuo. Pedestres reais a 30fps simplesmente não se
+deslocam o suficiente por quadro, relativo ao próprio tamanho, pra a
+hipótese de velocidade zero ser um problema sério. O gargalo que a Parte 1
+expôs (switches/fragmentação alta em cenas densas) vem de outro lugar —
+ambiguidade de identidade entre pessoas próximas e morte de track por
+oclusão longa — problemas que um modelo de **movimento puro** (sem
+informação de aparência, a Trilha B que não escolhemos) não ataca.
