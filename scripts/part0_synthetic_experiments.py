@@ -109,7 +109,7 @@ def demo_occlusion_figure():
 # 2) Validação visual do simulador de detector
 # ---------------------------------------------------------------------------
 def demo_detector_sim():
-    gen = SyntheticVideoGenerator(num_objects=6, speed=1.5, occlusion_duration=0, seed=7, n_frames=20)
+    gen = SyntheticVideoGenerator(num_objects=6, speed=1.5, occlusion_duration=0, seed=7, n_frames=30)
     frames, gt, vis, _ = gen.generate()
 
     sim_dets = simulate_detections(
@@ -178,7 +178,9 @@ def demo_easy_floor():
     gen = SyntheticVideoGenerator(num_objects=4, speed=0.8, occlusion_duration=0, seed=123, n_frames=40)
     _, gt, vis, _ = gen.generate()
 
-    m, _ = run_baseline(
+    # variante 1: deteccao quase perfeita -> sanity check de que a metrica/tracker
+    # nao tem bug nenhum escondido (deve dar praticamente IDF1=1.0 exato).
+    m_clean, _ = run_baseline(
         gt,
         vis,
         (gen.width, gen.height),
@@ -186,11 +188,27 @@ def demo_easy_floor():
         tracker_kwargs=dict(iou_threshold=0.3, max_age=5, match_method="hungarian"),
         seed=0,
     )
-    print(f"\n[Parte 0.4] Piso facil (4 elipses lentas, sem oclusao, deteccao quase limpa): IDF1={m['idf1']:.3f} "
-          f"switches={m['id_switches']} frags={m['fragmentations']}")
-    assert m["idf1"] > 0.95, f"IDF1 deveria ficar muito perto de 1 no piso facil, obtido {m['idf1']}"
-    print("[ok] IDF1 > 0.95 como esperado no piso facil")
-    return m
+    print(f"\n[Parte 0.4] Piso facil, deteccao quase perfeita: IDF1={m_clean['idf1']:.3f} "
+          f"switches={m_clean['id_switches']} frags={m_clean['fragmentations']}")
+    assert m_clean["idf1"] > 0.95, f"IDF1 deveria ficar muito perto de 1 no piso facil, obtido {m_clean['idf1']}"
+
+    # variante 2: mesmo cenario facil (poucas elipses, lentas, sem oclusao), mas com
+    # o MESMO ruido de detector moderado usado no sweep de dificuldade -- mostra que
+    # a associacao ingenua em si e robusta quando o problema de movimento é trivial,
+    # e so degrada quando a dinamica (velocidade/oclusao/densidade) fica dificil.
+    m_noisy, _ = run_baseline(
+        gt,
+        vis,
+        (gen.width, gen.height),
+        detector_kwargs=dict(drop_prob=0.05, occlusion_sensitivity=2.0, coord_noise_std=1.5, size_noise_std=1.0, fp_rate=0.2),
+        tracker_kwargs=dict(iou_threshold=0.3, max_age=5, match_method="hungarian"),
+        seed=0,
+    )
+    print(f"[Parte 0.4] Piso facil, deteccao com ruido moderado (mesmo do sweep): IDF1={m_noisy['idf1']:.3f} "
+          f"switches={m_noisy['id_switches']} frags={m_noisy['fragmentations']}")
+    assert m_noisy["idf1"] > 0.85, f"IDF1 deveria continuar alto mesmo com ruido moderado, obtido {m_noisy['idf1']}"
+    print("[ok] IDF1 > 0.95 (deteccao limpa) e > 0.85 (deteccao com ruido moderado) no piso facil")
+    return m_clean, m_noisy
 
 
 # ---------------------------------------------------------------------------

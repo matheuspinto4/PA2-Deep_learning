@@ -67,6 +67,7 @@ class SyntheticVideoGenerator:
     occlusion_duration: int = 10  # quadros de oclusão total roteirizada
     noise_std: float = 12.0  # ruído do fundo
     size_range: tuple = (5.0, 14.0)
+    intensity_range: tuple = (60.0, 230.0)  # cinza de preenchimento das elipses -> controla o contraste contra o fundo
     seed: int | None = None
 
     def generate(self):
@@ -123,7 +124,7 @@ class SyntheticVideoGenerator:
             angle = rng.uniform(0, 2 * np.pi)
             spd = self.speed * rng.uniform(0.6, 1.4)
             vel = spd * np.array([np.cos(angle), np.sin(angle)])
-            intensity = rng.uniform(60, 230)
+            intensity = rng.uniform(*self.intensity_range)
             objects.append(_Obj(i, pos0, vel, rx, ry, int(depths[i]), intensity, bounce=True))
 
         self._occlusion_meta = None
