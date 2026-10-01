@@ -116,12 +116,12 @@ def draw_frame(ax, frame, state, gt_positions):
             plt.Rectangle((pos["x"], pos["y"]), pos["w"], pos["h"], fill=False,
                           edgecolor="gray", linestyle="--", linewidth=1.3)
         )
-        ax.text(pos["x"] + pos["w"] / 2, pos["y"] - 0.06, pos["label"], ha="center",
-                fontsize=7, color="gray", style="italic")
+        ax.text(pos["x"] + pos["w"] / 2, pos["y"] - 0.07, pos["label"], ha="center",
+                fontsize=9, color="gray", style="italic")
 
     # caixa prevista (sólida, colorida por ID) -- só existe se o id foi "detectado" neste quadro
     if not state:
-        ax.text(0.5, 0.5, "SEM\nDETECÇÃO", ha="center", va="center", fontsize=9,
+        ax.text(0.5, 0.5, "SEM\nDETECÇÃO", ha="center", va="center", fontsize=11,
                 color="firebrick", fontweight="bold")
     else:
         for pred_id, pos in state.items():
@@ -132,43 +132,45 @@ def draw_frame(ax, frame, state, gt_positions):
                               fill=True, facecolor=color, alpha=0.35, edgecolor=color, linewidth=2)
             )
             ax.text(pos["x"] + pos["w"] / 2, pos["y"] + pos["h"] / 2, f"ID {pred_id}",
-                    ha="center", va="center", fontsize=9, fontweight="bold", color=color)
+                    ha="center", va="center", fontsize=12, fontweight="bold", color=color)
 
-    ax.set_title(f"quadro {frame}", fontsize=9)
+    ax.set_title(f"quadro {frame}", fontsize=11)
 
 
-def build_figure():
-    m_a, m_b, m_c = compute_all_metrics()
-    metrics_by_case = {"a": m_a, "b": m_b, "c": m_c}
-
+def build_case_figure(case, m, out_name):
     n_cols = len(COLUMNS)
-    fig, axes = plt.subplots(3, n_cols, figsize=(2.1 * n_cols, 7.2))
+    fig, axes = plt.subplots(1, n_cols, figsize=(2.6 * n_cols, 3.6))
 
-    for row, case in enumerate(CASES):
-        m = metrics_by_case[case["key"]]
-        for col, frame in enumerate(COLUMNS):
-            ax = axes[row, col]
-            state = case["fn"](frame)
-            draw_frame(ax, frame, state, case["gt_positions"])
-            if frame == 5:  # marca visualmente onde a troca/buraco começa
-                ax.spines["left"].set_color("black")
-                ax.spines["left"].set_linewidth(2.5)
+    for col, frame in enumerate(COLUMNS):
+        ax = axes[col]
+        state = case["fn"](frame)
+        draw_frame(ax, frame, state, case["gt_positions"])
+        if frame == 5:  # marca visualmente onde a troca/buraco começa
+            ax.spines["left"].set_color("black")
+            ax.spines["left"].set_linewidth(2.5)
 
-        row_title = (
-            f"{case['title']}\n"
-            f"IDF1={m['idf1']:.3f}   ID switches={m['id_switches']}   fragmentações={m['fragmentations']}"
-        )
-        fig.text(0.01, 1 - (row + 0.42) / 3, row_title, fontsize=10, fontweight="bold",
-                  va="center", ha="left", wrap=True)
+    fig.suptitle(
+        f"{case['title']}\n"
+        f"IDF1={m['idf1']:.3f}    ID switches={m['id_switches']}    fragmentações={m['fragmentations']}",
+        fontsize=13,
+    )
 
-    plt.subplots_adjust(left=0.30, top=0.90, bottom=0.03, hspace=0.55, wspace=0.15)
-    fig.suptitle("Parte 0, item 3 — os 3 casos de métrica construídos à mão (quadro a quadro)", fontsize=13)
+    plt.tight_layout(rect=[0, 0, 1, 0.86])
 
-    out_path = OUT_DIR / "04_metric_cases_demo.png"
-    fig.savefig(out_path, dpi=130)
+    out_path = OUT_DIR / out_name
+    fig.savefig(out_path, dpi=140)
     plt.close(fig)
     print(f"[ok] figura salva em {out_path}")
 
 
+def build_figures():
+    m_a, m_b, m_c = compute_all_metrics()
+    metrics_by_case = {"a": m_a, "b": m_b, "c": m_c}
+    out_names = {"a": "04a_metric_case_a.png", "b": "04b_metric_case_b.png", "c": "04c_metric_case_c.png"}
+
+    for case in CASES:
+        build_case_figure(case, metrics_by_case[case["key"]], out_names[case["key"]])
+
+
 if __name__ == "__main__":
-    build_figure()
+    build_figures()
