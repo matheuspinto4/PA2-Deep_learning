@@ -42,13 +42,14 @@ VARIANTS = ["DPM", "FRCNN", "SDP"]
 TORCHVISION_AP = {
     "MOT17-02": 0.398,
     "MOT17-09": 0.704,
-    "MOT17-04": 0.539,
-    # "MOT17-11": pendente, falta imagem baixada
+    "MOT17-04": 0.553,
+    "MOT17-11": 0.657,
 }
 SDP_AP_NA_AMOSTRA_TORCHVISION = {  # AP do SDP calculado nos MESMOS 40 quadros (maçã com maçã)
     "MOT17-02": 0.407,
     "MOT17-09": 0.656,
-    "MOT17-04": 0.753,
+    "MOT17-04": 0.748,
+    "MOT17-11": 0.747,
 }
 
 

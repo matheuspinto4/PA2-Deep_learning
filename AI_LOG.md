@@ -112,8 +112,35 @@ muito (IDF1 caiu pra 0.36-0.65, switches na casa das centenas pra sequências
 densas) — exatamente o "fracasso" que a Parte 1 pede pra quantificar, e que
 motiva a Parte 2.
 
+**Download instável, resolvido com uma segunda via.** O servidor do
+motchallenge.net teve outages intermitentes no meio do download via
+range-request (timeouts de conexão, não só quedas de conexão já aberta).
+Primeiro deixei o script mais resiliente (timeout explícito de 30s em vez
+de `None`, até 6 tentativas com backoff exponencial, idempotente por imagem
+dentro de um lote, uma sequência falhando não derruba as outras). Mesmo
+assim, pra não ficar refém da instabilidade do servidor, baixei também o
+`MOT17.zip` completo manualmente (a opção "crua", sem o truque de
+range-request) e copiei as pastas `img1/` que faltavam
+(`data/MOT17_SITE/MOT17/train/MOT17-{04,11}-FRCNN/img1/` ->
+`data/MOT17/{diagnostic,test}/MOT17-{04,11}/img1/`). Isso completou as 4
+sequências (900/900 imagens no MOT17-11, que antes tinha zero) sem precisar
+esperar o range-request terminar. Lição: tinha esquecido de generalizar o
+`.gitignore` pra cobrir `data/MOT17_SITE/` também (só tinha `data/MOT17/`
+explicitamente) — percebi e troquei pra ignorar `data/` inteiro antes de
+qualquer commit, senão teria tentado versionar ~5.7GB de imagem.
+
+Com as 4 sequências completas, rodei a comparação torchvision-vs-SDP nas 4
+(antes só tinha MOT17-02). Resultado mais rico do que o esperado: o
+detector genérico não é uniformemente pior nem melhor — empata no MOT17-02
+(0.398 vs 0.407), **ganha** no MOT17-09 (0.704 vs 0.656), e **perde** com
+folga no MOT17-04 e MOT17-11 (0.553 vs 0.748; 0.657 vs 0.747). Isso vira um
+bom ponto de apresentação: a vantagem de um detector "nativo" do dataset
+(treinado/calibrado nessas cenas específicas) aparece justamente nas cenas
+mais densas/difíceis, não nas mais fáceis.
+
+Com isso a Parte 1 está completa nos 5 itens pedidos.
+
 ## Próximas entradas
 
 Vamos continuar registrando aqui conforme avançamos para a Parte 2 (RNN de
-movimento) em diante. Falta ainda rodar a comparação torchvision-vs-público
-nas outras 3 sequências assim que o download das imagens terminar.
+movimento) em diante.

@@ -3,9 +3,9 @@ __pycache__/
 .pytest_cache/
 .ipynb_checkpoints/
 
-# dados baixados do MOT17 (grandes, não vão pro git)
-data/MOT17/
-data/MOT17-annotations/
+# dados baixados do MOT17 (grandes, não vão pro git) -- tudo dentro de data/,
+# independente do nome da subpasta (data/MOT17/, data/MOT17_SITE/, etc.)
+data/
 *.zip
 
 # checkpoints grandes (deixamos só os pequenos / um link no README)
