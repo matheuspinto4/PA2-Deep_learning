@@ -153,12 +153,18 @@ vitória uniforme de nenhum dos dois lados.
 **Avaliação como trajetórias** (detector SDP, associação ingênua da Parte 0,
 ordenado por densidade; ver `outputs/part1/01_descolamento.png`):
 
-| Sequência | câmera | densidade | AP | IDF1 | switches | frags | ids pred/gt (razão) |
-|---|---|---|---|---|---|---|---|
-| MOT17-09 | parada | 10.1 | 0.649 | 0.476 | 56 | 152 | 93/26 (3.58x) |
-| MOT17-11 | movimento | 10.5 | 0.738 | 0.574 | 140 | 237 | 194/75 (2.59x) |
-| MOT17-02 | parada | 31.0 | 0.406 | 0.355 | 334 | 836 | 455/62 (7.34x) |
-| MOT17-04 | parada | 45.3 | 0.747 | 0.647 | 199 | 873 | 210/83 (2.53x) |
+| Sequência | câmera | densidade | AP | IDF1 | switches | frags | ids pred/gt | erro de contagem (análogo PA1) | razão |
+|---|---|---|---|---|---|---|---|---|---|
+| MOT17-09 | parada | 10.1 | 0.649 | 0.476 | 56 | 152 | 93/26 | **+67** | 3.58x |
+| MOT17-11 | movimento | 10.5 | 0.738 | 0.574 | 140 | 237 | 194/75 | **+119** | 2.59x |
+| MOT17-02 | parada | 31.0 | 0.406 | 0.355 | 334 | 836 | 455/62 | **+393** | 7.34x |
+| MOT17-04 | parada | 45.3 | 0.747 | 0.647 | 199 | 873 | 210/83 | **+127** | 2.53x |
+
+"Erro de contagem" aqui é `n_ids_previstas - n_ids_verdadeiras` (o análogo
+temporal direto do erro de contagem de instâncias do PA1): o tracker ingênuo
+sempre **superconta** identidades (nunca subconta), porque toda vez que uma
+track morre e um objeto reaparece, vira uma identidade nova — nunca o
+contrário.
 
 Dois achados centrais: (1) em **toda** sequência o IDF1 fica sistematicamente
 abaixo do mAP — boa detecção por quadro não implica identidade boa ao longo
