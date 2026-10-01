@@ -147,28 +147,43 @@ def plot_descolamento(results, detector_name):
     plt.close(fig)
     print(f"\n[ok] gráfico salvo em {OUT_DIR/'01_descolamento.png'}")
 
-    # versões separadas (um eixo Y só por gráfico), pra apresentação/slides --
-    # o painel de baixo acima usa eixo duplo (razão à esquerda, switches/id à
-    # direita, escalas diferentes), mais difícil de ler/recortar isolado.
+    # versões separadas (um eixo Y só por gráfico, ou uma métrica só), pra
+    # apresentação/slides -- os dois painéis acima compartilham eixo (mAP+IDF1,
+    # mesma escala 0-1) ou usam eixo duplo (razão + switches/id, escalas
+    # diferentes), o que dificulta copiar um painel sozinho pro slide.
+    _plot_single(
+        x, labels, [r["ap"] for r in results], color="tab:green",
+        ylabel="mAP (detecção, por quadro)",
+        title="mAP por sequência (qualidade de detecção)",
+        out_name="01a_mapa.png", ylim=(0, 1.05),
+    )
+    _plot_single(
+        x, labels, [r["idf1"] for r in results], color="tab:blue",
+        ylabel="IDF1 (identidade, trajetória)",
+        title="IDF1 por sequência (qualidade de identidade)",
+        out_name="01b_idf1.png", ylim=(0, 1.05),
+    )
     _plot_single(
         x, labels, [r["ratio"] for r in results], color="tab:purple",
         ylabel="razão de identidades (ids previstas / verdadeiras)",
         title="Erro de contagem de identidades, por sequência",
-        out_name="01b_razao_identidades.png", hline=1.0,
+        out_name="01c_razao_identidades.png", hline=1.0,
     )
     _plot_single(
         x, labels, [r["switches_per_id"] for r in results], color="tab:red",
         ylabel="ID switches por identidade verdadeira",
         title="ID switches por identidade, por sequência",
-        out_name="01c_switches_por_identidade.png",
+        out_name="01d_switches_por_identidade.png",
     )
 
 
-def _plot_single(x, labels, values, color, ylabel, title, out_name, hline=None):
+def _plot_single(x, labels, values, color, ylabel, title, out_name, hline=None, ylim=None):
     fig, ax = plt.subplots(figsize=(8, 5))
     ax.plot(x, values, "o-", color=color)
     if hline is not None:
         ax.axhline(hline, color="gray", linestyle=":", linewidth=1)
+    if ylim is not None:
+        ax.set_ylim(*ylim)
     ax.set_xticks(x)
     ax.set_xticklabels(labels, fontsize=9)
     ax.set_ylabel(ylabel)
