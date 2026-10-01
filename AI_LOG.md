@@ -140,7 +140,54 @@ mais densas/difíceis, não nas mais fáceis.
 
 Com isso a Parte 1 está completa nos 5 itens pedidos.
 
+## Parte 2 — RNN de movimento (Trilha A)
+
+**Decisões de arquitetura, antes de escrever qualquer linha de treino:**
+entrada = caixa (x,y,w,h normalizada) + confiança; perda só smooth-L1 na
+caixa (sem incerteza por enquanto — fica como extensão futura se sobrar
+tempo); célula GRU (menos parâmetro que LSTM, mais rápida em CPU); e
+pré-treinar no sintético da Parte 0 antes de arriscar tempo de CPU no
+MOT17 — mesmo princípio da Parte 0 inteira.
+
+**Bug pego pelos próprios testes antes de qualquer treino real.** A
+primeira versão do `rollout()` (a função que decide, quadro a quadro, se
+alimenta a observação real ou a própria previsão anterior — o mecanismo de
+"rodar para frente sem observação" sob oclusão) usava `observed_mask.all()`
+pra decidir isso, o que colapsa a decisão do BATCH INTEIRO numa amostra só.
+Pedi pra escrever o teste `test_rollout_decisao_e_por_amostra_no_batch`
+ANTES de confiar na função (duas amostras no mesmo batch com máscaras
+diferentes), ele pegou o bug de cara, e só aceitei a correção depois de ver
+o teste passar.
+
+**Escolha de usar visibilidade do gt como "confiança" no treino.** Como o
+enunciado pede treinar "em trajetórias do ground truth" (não em detecções
+reais), não existe um score de detector de verdade disponível pra alimentar
+o modelo durante o treino. Em vez de usar uma constante (ex. sempre 1.0),
+decidi usar a visibilidade do gt como proxy: é um sinal real, variável, que
+cai sob oclusão — e uso o mesmo limiar pra decidir se um quadro "conta como
+observado" (vira teacher forcing) ou não (vira free-running), ligando
+diretamente esse mecanismo de treino ao conceito de oclusão que já
+construímos na Parte 0.
+
+**Resultado do pré-treino sintético — achado honesto.** Com 40 épocas, o
+modelo já acompanhava bem a trajetória ANTES da oclusão, mas durante a
+janela de oclusão (free-running) ele extrapolava na direção ERRADA antes de
+"corrigir" de golpe assim que a observação real voltava (erro médio de 8.53
+px). Com 200 épocas, melhorou bastante (2.76 px), mas ainda não supera nem
+o baseline trivial de "manter a posição congelada" (2.40 px) nesse cenário
+específico — e fica muito atrás de uma extrapolação de velocidade
+constante, que nesse caso dá erro ~0 porque o objeto roteirizado se move em
+LINHA RETA PERFEITA, sem ruído nenhum (é assim que o gerador da Parte 0
+constrói a oclusão). Isso bate exatamente com o que o próprio enunciado
+avisa: "[o filtro de Kalman de velocidade constante] é um baseline honesto
+e frequentemente difícil de bater". Decidi não ficar perseguindo bater esse
+número no sintético perfeitamente limpo — o objetivo desta etapa era só
+confirmar que o modelo aprende a tarefa certa (e aprende: ele claramente
+tenta extrapolar movimento, não só congela), e pedestres de verdade no
+MOT17 não se movem em linha reta perfeita, então é lá que um modelo não
+linear aprendido tem chance real de ganhar de um filtro linear simples.
+
 ## Próximas entradas
 
-Vamos continuar registrando aqui conforme avançamos para a Parte 2 (RNN de
-movimento) em diante.
+Vamos continuar registrando aqui conforme avançamos para o treino no MOT17
+e a construção do tracker baseado no MotionGRU.
