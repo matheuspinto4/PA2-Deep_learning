@@ -147,33 +147,37 @@ def plot_descolamento(results, detector_name):
     plt.close(fig)
     print(f"\n[ok] gráfico salvo em {OUT_DIR/'01_descolamento.png'}")
 
-    # versões separadas (um eixo Y só por gráfico, ou uma métrica só), pra
-    # apresentação/slides -- os dois painéis acima compartilham eixo (mAP+IDF1,
-    # mesma escala 0-1) ou usam eixo duplo (razão + switches/id, escalas
-    # diferentes), o que dificulta copiar um painel sozinho pro slide.
-    _plot_single(
-        x, labels, [r["ap"] for r in results], color="tab:green",
-        ylabel="mAP (detecção, por quadro)",
-        title="mAP por sequência (qualidade de detecção)",
-        out_name="01a_mapa.png", ylim=(0, 1.05),
-    )
-    _plot_single(
-        x, labels, [r["idf1"] for r in results], color="tab:blue",
-        ylabel="IDF1 (identidade, trajetória)",
-        title="IDF1 por sequência (qualidade de identidade)",
-        out_name="01b_idf1.png", ylim=(0, 1.05),
-    )
+    # versão separada do painel de cima (pra copiar isolado pro slide) --
+    # mAP e IDF1 ficam juntos aqui, mesma escala 0-1, sem problema de eixo
+    # duplo. O painel de baixo (razão + switches/id) É eixo duplo de
+    # verdade, esse sim quebrado em dois gráficos de métrica única.
+    fig2, ax = plt.subplots(figsize=(9, 5.5))
+    ax.plot(x, [r["ap"] for r in results], "o-", color="tab:green", label="mAP (detecção, por quadro)")
+    ax.plot(x, [r["idf1"] for r in results], "s-", color="tab:blue", label="IDF1 (identidade, trajetória)")
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels, fontsize=9)
+    ax.set_ylabel("score")
+    ax.set_ylim(0, 1.05)
+    ax.set_xlabel("sequência, ordenada por densidade (eixo de dificuldade escolhido)")
+    ax.set_title(f"Descolamento entre detecção e identidade (detector={detector_name})")
+    ax.legend()
+    ax.grid(alpha=0.3)
+    plt.tight_layout()
+    fig2.savefig(OUT_DIR / "01a_mapa_e_idf1.png", dpi=130)
+    plt.close(fig2)
+    print(f"[ok] figura salva em {OUT_DIR / '01a_mapa_e_idf1.png'}")
+
     _plot_single(
         x, labels, [r["ratio"] for r in results], color="tab:purple",
         ylabel="razão de identidades (ids previstas / verdadeiras)",
         title="Erro de contagem de identidades, por sequência",
-        out_name="01c_razao_identidades.png", hline=1.0,
+        out_name="01b_razao_identidades.png", hline=1.0,
     )
     _plot_single(
         x, labels, [r["switches_per_id"] for r in results], color="tab:red",
         ylabel="ID switches por identidade verdadeira",
         title="ID switches por identidade, por sequência",
-        out_name="01d_switches_por_identidade.png",
+        out_name="01c_switches_por_identidade.png",
     )
 
 
