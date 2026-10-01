@@ -15,3 +15,6 @@ checkpoints/*.pth
 
 outputs/**/*.mp4
 outputs/**/*.avi
+
+# rascunho pessoal de apresentação, não é entregável do PA
+slides_notes.md
