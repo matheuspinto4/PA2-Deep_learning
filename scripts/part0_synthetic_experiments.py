@@ -264,6 +264,41 @@ def demo_difficulty_sweep():
         print(f"  {r['eixo']:20s} = {r['valor']:>6} -> IDF1={r['idf1']:.3f} switches={r['id_switches']:>3} "
               f"frags={r['fragmentations']:>3} idratio={r['ratio']:.2f}")
 
+    # versões separadas (um eixo Y só por gráfico), pra apresentação/slides --
+    # o gráfico combinado acima usa eixo duplo (IDF1 à esquerda, switches à
+    # direita, escalas diferentes), que é mais difícil de ler/recortar.
+    _plot_sweep_single_metric(
+        results, titles, metric_key="idf1", ylabel="IDF1", color="tab:blue",
+        suptitle="Sweep de dificuldade (Parte 0) — IDF1", out_name="03a_difficulty_sweep_idf1.png",
+        ylim=(0, 1.05),
+    )
+    _plot_sweep_single_metric(
+        results, titles, metric_key="id_switches", ylabel="ID switches", color="tab:red",
+        suptitle="Sweep de dificuldade (Parte 0) — ID switches", out_name="03b_difficulty_sweep_switches.png",
+    )
+
+
+def _plot_sweep_single_metric(results, titles, metric_key, ylabel, color, suptitle, out_name, ylim=None):
+    fig, axes = plt.subplots(1, 3, figsize=(15, 4.2))
+    for ax, eixo in zip(axes, ["num_objects", "speed", "occlusion_duration"]):
+        xs = [r["valor"] for r in results if r["eixo"] == eixo]
+        ys = [r[metric_key] for r in results if r["eixo"] == eixo]
+        marker = "o-" if metric_key == "idf1" else "s-"
+        ax.plot(xs, ys, marker, color=color)
+        ax.set_xlabel(titles[eixo])
+        ax.set_ylabel(ylabel)
+        if ylim:
+            ax.set_ylim(*ylim)
+        ax.set_title(titles[eixo])
+        ax.grid(alpha=0.3)
+
+    fig.suptitle(suptitle, fontsize=13)
+    plt.tight_layout()
+    out_path = OUT_DIR / out_name
+    fig.savefig(out_path, dpi=130)
+    plt.close(fig)
+    print(f"[ok] figura salva em {out_path}")
+
 
 if __name__ == "__main__":
     demo_occlusion_figure()

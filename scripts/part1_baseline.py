@@ -40,7 +40,7 @@ SEQUENCES = [
     ("MOT17-02", "train", "parada", 31.0),
     ("MOT17-09", "val", "parada", 10.1),
     ("MOT17-04", "diagnostic", "parada", 45.3),
-    ("MOT17-11", "test", "em movimento (held-out)", 10.5),
+    ("MOT17-11", "test", "em movimento, held-out", 10.5),
 ]
 VARIANTS = ["DPM", "FRCNN", "SDP"]
 
@@ -146,6 +146,40 @@ def plot_descolamento(results, detector_name):
     fig.savefig(OUT_DIR / "01_descolamento.png", dpi=130)
     plt.close(fig)
     print(f"\n[ok] gráfico salvo em {OUT_DIR/'01_descolamento.png'}")
+
+    # versões separadas (um eixo Y só por gráfico), pra apresentação/slides --
+    # o painel de baixo acima usa eixo duplo (razão à esquerda, switches/id à
+    # direita, escalas diferentes), mais difícil de ler/recortar isolado.
+    _plot_single(
+        x, labels, [r["ratio"] for r in results], color="tab:purple",
+        ylabel="razão de identidades (ids previstas / verdadeiras)",
+        title="Erro de contagem de identidades, por sequência",
+        out_name="01b_razao_identidades.png", hline=1.0,
+    )
+    _plot_single(
+        x, labels, [r["switches_per_id"] for r in results], color="tab:red",
+        ylabel="ID switches por identidade verdadeira",
+        title="ID switches por identidade, por sequência",
+        out_name="01c_switches_por_identidade.png",
+    )
+
+
+def _plot_single(x, labels, values, color, ylabel, title, out_name, hline=None):
+    fig, ax = plt.subplots(figsize=(8, 5))
+    ax.plot(x, values, "o-", color=color)
+    if hline is not None:
+        ax.axhline(hline, color="gray", linestyle=":", linewidth=1)
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels, fontsize=9)
+    ax.set_ylabel(ylabel)
+    ax.set_xlabel("sequência, ordenada por densidade (eixo de dificuldade escolhido)")
+    ax.set_title(title)
+    ax.grid(alpha=0.3)
+    plt.tight_layout()
+    out_path = OUT_DIR / out_name
+    fig.savefig(out_path, dpi=130)
+    plt.close(fig)
+    print(f"[ok] figura salva em {out_path}")
 
 
 if __name__ == "__main__":
