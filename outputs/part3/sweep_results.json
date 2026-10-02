@@ -1,0 +1,254 @@
+[
+  {
+    "cell_type": "rnn",
+    "T": 4,
+    "seed": 0,
+    "val_loss": 4.8819051505446665e-05,
+    "long_occ_error": 0.04499700292944908
+  },
+  {
+    "cell_type": "rnn",
+    "T": 4,
+    "seed": 1,
+    "val_loss": 4.881157734571582e-05,
+    "long_occ_error": 0.04504222050309181
+  },
+  {
+    "cell_type": "rnn",
+    "T": 4,
+    "seed": 2,
+    "val_loss": 4.880893391871607e-05,
+    "long_occ_error": 0.04500160738825798
+  },
+  {
+    "cell_type": "lstm",
+    "T": 4,
+    "seed": 0,
+    "val_loss": 4.881523142451423e-05,
+    "long_occ_error": 0.0449511781334877
+  },
+  {
+    "cell_type": "lstm",
+    "T": 4,
+    "seed": 1,
+    "val_loss": 4.882069845521944e-05,
+    "long_occ_error": 0.044963859021663666
+  },
+  {
+    "cell_type": "lstm",
+    "T": 4,
+    "seed": 2,
+    "val_loss": 4.881586826431498e-05,
+    "long_occ_error": 0.04496435075998306
+  },
+  {
+    "cell_type": "gru",
+    "T": 4,
+    "seed": 0,
+    "val_loss": 4.8817624411504825e-05,
+    "long_occ_error": 0.04499354213476181
+  },
+  {
+    "cell_type": "gru",
+    "T": 4,
+    "seed": 1,
+    "val_loss": 4.882303207349205e-05,
+    "long_occ_error": 0.04503786936402321
+  },
+  {
+    "cell_type": "gru",
+    "T": 4,
+    "seed": 2,
+    "val_loss": 4.881254680901506e-05,
+    "long_occ_error": 0.0450134202837944
+  },
+  {
+    "cell_type": "rnn",
+    "T": 8,
+    "seed": 0,
+    "val_loss": 6.929831748824323e-05,
+    "long_occ_error": 0.04449113830924034
+  },
+  {
+    "cell_type": "rnn",
+    "T": 8,
+    "seed": 1,
+    "val_loss": 6.918169633122902e-05,
+    "long_occ_error": 0.04445313662290573
+  },
+  {
+    "cell_type": "rnn",
+    "T": 8,
+    "seed": 2,
+    "val_loss": 6.90604020664151e-05,
+    "long_occ_error": 0.044505391269922256
+  },
+  {
+    "cell_type": "lstm",
+    "T": 8,
+    "seed": 0,
+    "val_loss": 6.913461989328921e-05,
+    "long_occ_error": 0.04451265558600426
+  },
+  {
+    "cell_type": "lstm",
+    "T": 8,
+    "seed": 1,
+    "val_loss": 6.905137342982925e-05,
+    "long_occ_error": 0.044906135648489
+  },
+  {
+    "cell_type": "lstm",
+    "T": 8,
+    "seed": 2,
+    "val_loss": 6.896265792668352e-05,
+    "long_occ_error": 0.04492891579866409
+  },
+  {
+    "cell_type": "gru",
+    "T": 8,
+    "seed": 0,
+    "val_loss": 6.904606243551825e-05,
+    "long_occ_error": 0.04344567283987999
+  },
+  {
+    "cell_type": "gru",
+    "T": 8,
+    "seed": 1,
+    "val_loss": 6.897197702280458e-05,
+    "long_occ_error": 0.04408920556306839
+  },
+  {
+    "cell_type": "gru",
+    "T": 8,
+    "seed": 2,
+    "val_loss": 6.899156815879078e-05,
+    "long_occ_error": 0.04382361099123955
+  },
+  {
+    "cell_type": "rnn",
+    "T": 16,
+    "seed": 0,
+    "val_loss": 9.751642719493247e-05,
+    "long_occ_error": 0.035688623785972595
+  },
+  {
+    "cell_type": "rnn",
+    "T": 16,
+    "seed": 1,
+    "val_loss": 9.838041551120113e-05,
+    "long_occ_error": 0.03742029517889023
+  },
+  {
+    "cell_type": "rnn",
+    "T": 16,
+    "seed": 2,
+    "val_loss": 9.871178481262177e-05,
+    "long_occ_error": 0.036248356103897095
+  },
+  {
+    "cell_type": "lstm",
+    "T": 16,
+    "seed": 0,
+    "val_loss": 9.906856721499934e-05,
+    "long_occ_error": 0.03798946365714073
+  },
+  {
+    "cell_type": "lstm",
+    "T": 16,
+    "seed": 1,
+    "val_loss": 9.866567161225248e-05,
+    "long_occ_error": 0.03776782751083374
+  },
+  {
+    "cell_type": "lstm",
+    "T": 16,
+    "seed": 2,
+    "val_loss": 9.920770171447657e-05,
+    "long_occ_error": 0.038728076964616776
+  },
+  {
+    "cell_type": "gru",
+    "T": 16,
+    "seed": 0,
+    "val_loss": 9.70954199146945e-05,
+    "long_occ_error": 0.03348372504115105
+  },
+  {
+    "cell_type": "gru",
+    "T": 16,
+    "seed": 1,
+    "val_loss": 9.75509643467376e-05,
+    "long_occ_error": 0.03450958430767059
+  },
+  {
+    "cell_type": "gru",
+    "T": 16,
+    "seed": 2,
+    "val_loss": 9.702716743049677e-05,
+    "long_occ_error": 0.03361080214381218
+  },
+  {
+    "cell_type": "rnn",
+    "T": 32,
+    "seed": 0,
+    "val_loss": 0.00012213149966555648,
+    "long_occ_error": 0.0290265791118145
+  },
+  {
+    "cell_type": "rnn",
+    "T": 32,
+    "seed": 1,
+    "val_loss": 0.00012240210526215378,
+    "long_occ_error": 0.029982199892401695
+  },
+  {
+    "cell_type": "rnn",
+    "T": 32,
+    "seed": 2,
+    "val_loss": 0.00012227467050252017,
+    "long_occ_error": 0.028885778039693832
+  },
+  {
+    "cell_type": "lstm",
+    "T": 32,
+    "seed": 0,
+    "val_loss": 0.00012225906721141655,
+    "long_occ_error": 0.029353415593504906
+  },
+  {
+    "cell_type": "lstm",
+    "T": 32,
+    "seed": 1,
+    "val_loss": 0.00012102801338187419,
+    "long_occ_error": 0.030106663703918457
+  },
+  {
+    "cell_type": "lstm",
+    "T": 32,
+    "seed": 2,
+    "val_loss": 0.00012015984066238161,
+    "long_occ_error": 0.029653728008270264
+  },
+  {
+    "cell_type": "gru",
+    "T": 32,
+    "seed": 0,
+    "val_loss": 0.0001189132199215237,
+    "long_occ_error": 0.027867790311574936
+  },
+  {
+    "cell_type": "gru",
+    "T": 32,
+    "seed": 1,
+    "val_loss": 0.00011924768296012189,
+    "long_occ_error": 0.02735566534101963
+  },
+  {
+    "cell_type": "gru",
+    "T": 32,
+    "seed": 2,
+    "val_loss": 0.0001189255290228175,
+    "long_occ_error": 0.027202174067497253
+  }
+]

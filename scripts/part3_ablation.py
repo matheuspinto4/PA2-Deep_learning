@@ -35,12 +35,21 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+import torch
+
+# Tem que vir ANTES de qualquer outra coisa usar torch: o modelo é minúsculo
+# (poucas centenas de parâmetros por passo) e roda num laço Python por
+# quadro -- o paralelismo multi-thread padrão do PyTorch em CPU gasta mais
+# tempo sincronizando threads do que a conta em si leva pra rodar, e deixa
+# tudo MUITO mais lento (medido: ~6-7x mais devagar com threads
+# default do que com 1 thread só, neste sweep especificamente).
+torch.set_num_threads(1)
+
 import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
-import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
