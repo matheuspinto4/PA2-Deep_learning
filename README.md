@@ -427,6 +427,12 @@ Parte 3 (que foi treinado com janela T=32) — o horizonte aprendido parece
 acompanhar a **janela de treino** (nossa Parte 2 usou T=16), não só o tipo
 de célula.
 
+Como fizemos o Eixo 1 da Parte 3, reaproveitamos a comparação RNN simples
+vs. modelo com portas, na mesma janela, que já tínhamos construído lá —
+os checkpoints já existiam: `outputs/part3/02_gradiente_que_some.png`
+(T=32, checkpoints seed=0) mostra a RNN simples caindo a zero numérico em
+16 passos contra o GRU sobrevivendo até os 30 passos inteiros.
+
 ### Horizonte de memória efetivo — empírica
 
 `outputs/part4/02_horizonte_empirico.png`: taxa de sobrevivência de
