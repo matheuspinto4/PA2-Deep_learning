@@ -242,7 +242,50 @@ eixos de dificuldade ao mesmo tempo (diferente do botão único do sweep
 sintético) e porque o modelo nunca foi treinado pra generalizar entre
 ∆t diferentes.
 
+## Parte 3 — Ablação, Eixo 1 (célula recorrente)
+
+**Generalizar em vez de duplicar.** Em vez de escrever 3 modelos separados
+(RNN simples, LSTM, GRU), pedi pra generalizar o `MotionGRU` da Parte 2
+pra um `MotionRNN(cell_type=...)` atrás da mesma interface. O detalhe que
+exigiu mais cuidado: LSTM tem dois estados internos (`h` e `c`), as outras
+duas só um. Resolvemos tratando o estado sempre como uma tupla opaca, que
+nem o tracker nem o laço de treino nunca abrem — só repassam pra frente e
+pra trás. Rodei TODOS os testes da Parte 2 (incluindo a regressão contra o
+tracker ingênuo) parametrizados pras 3 células antes de aceitar a
+refatoração, e todos passaram sem mudar nenhuma expectativa — only depois
+disso confiei que a troca de arquitetura não quebrou nada da Parte 2.
+
+**Obstáculo real: o experimento "travava".** Rodando a varredura de 36
+combinações, o processo parecia nunca sair do lugar. Pedi pra investigar
+em vez de simplesmente esperar mais. Descoberta: o processo tinha
+acumulado 18.063 segundos de CPU em só 45 minutos de relógio — o PyTorch
+paraleliza automaticamente em várias threads até operações minúsculas (o
+modelo inteiro tem ~14 mil parâmetros, rodado passo a passo num laço
+Python), e o custo de sincronizar essas threads ficava maior que a conta
+em si, deixando tudo ~6-7x mais lento. Corrigido com
+`torch.set_num_threads(1)` logo no início do script. De quebra, descobri
+que colocar o processo em segundo plano manualmente com `comando &`
+(em vez de deixar a própria ferramenta do Claude Code auto-gerenciar o
+background) deixa o processo órfão/quase parado nesse ambiente Windows —
+outra causa separada do mesmo sintoma, resolvida rodando o comando direto.
+Também pedi pra reescrever o script salvando progresso incrementalmente
+(um JSON reescrito a cada combinação concluída), pra nunca mais perder
+trabalho se algo travar de novo no meio.
+
+**O resultado bateu com a teoria de um jeito que eu quis verificar de
+verdade, não só aceitar.** Depois de ver a curva de gradiente (RNN simples
+caindo a zero numérico em 16 passos, GRU sobrevivendo até 30), pedi pra
+ler os slides de aula sobre RNN (adicionei o PDF da aula no projeto) e
+confirmar, com a notação exata do curso, que o mecanismo bate: RNN simples
+multiplica repetidamente pela mesma matriz `W^T` (decai geometricamente se
+o maior valor singular for menor que 1); LSTM/GRU substituem isso por
+multiplicação elemento-a-elemento por um portão aprendido (a "esteira" que
+os slides descrevem). Só aceitei a conclusão depois de conferir que as
+DUAS métricas que desenhamos (perda de validação, que não deveria
+diferenciar as células, e erro de oclusão longa, que deveria) se
+comportaram exatamente como a teoria prevê — e não só uma das duas.
+
 ## Próximas entradas
 
-Vamos continuar registrando aqui conforme avançamos para a Parte 3
-(ablação da célula recorrente) em diante.
+Vamos continuar registrando aqui conforme avançamos para a Parte 4
+(galeria de falhas e horizonte de memória) em diante.
