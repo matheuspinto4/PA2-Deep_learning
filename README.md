@@ -109,8 +109,16 @@ python scripts/part2_train_mot17.py          # -> checkpoints/motion_gru_mot17.p
 python scripts/part2_evaluate.py             # métricas + figuras de comparação
 ```
 
-(demais comandos — ablação da Parte 3 em diante — serão adicionados
-conforme forem implementados.)
+Parte 3 — ablação da célula recorrente (Eixo 1). Progresso salvo
+incrementalmente em `outputs/part3/sweep_results.json`: rodar de novo
+retoma de onde parou, em vez de refazer tudo.
+
+```bash
+python scripts/part3_ablation.py
+```
+
+(demais comandos — Parte 4 em diante — serão adicionados conforme forem
+implementados.)
 
 ## Decisões registradas
 
@@ -310,3 +318,75 @@ modelo de movimento aprendido em ∆t fixo quebra quando ∆t muda? Alimentar
 ∆t na recorrência resolveria?"*. Este teste é evidência empírica direta
 de que sim, quebra — e exatamente pela ausência de ∆t na entrada, uma
 limitação de arquitetura já conhecida, não uma falha de implementação.
+
+## Parte 3 — Ablação, Eixo 1: a célula recorrente
+
+Escolhemos o **Eixo 1** (célula recorrente): RNN simples vs. LSTM vs. GRU,
+no mesmo orçamento aproximado de parâmetros, variando o comprimento da
+janela de BPTT truncado `T ∈ {4, 8, 16, 32}`, com 3 seeds por configuração
+(36 combinações no total). Rodado no **sintético da Parte 0** (não no
+MOT17): a pergunta é sobre o comportamento estrutural da célula sob
+dependências de longo alcance, e só o gerador sintético deixa controlar
+essa dependência (duração de oclusão) de forma limpa.
+
+**Generalização do modelo** (`pa2/models/motion_rnn.py`): o `MotionGRU` da
+Parte 2 virou `MotionRNN(cell_type=...)`, suportando as 3 células atrás da
+mesma interface — o estado é sempre uma tupla opaca (`(h,)` ou `(h,c)` pra
+LSTM), que o tracker nunca abre. `MotionGRU(...)` continua existindo como
+alias de compatibilidade. Todos os testes da Parte 2 foram parametrizados
+pras 3 células e continuaram passando sem nenhuma mudança de expectativa.
+
+**Orçamento de parâmetros equalizado** (`matched_hidden_size`, dentro de
+~0.6% do alvo):
+
+| Célula | hidden_size | parâmetros da célula |
+|---|---|---|
+| RNN simples | 113 | 13.560 |
+| LSTM | 55 | 13.640 |
+| GRU | 64 | 13.632 |
+
+**Resultado** (`outputs/part3/01_ablacao_celula_recorrente.png`,
+`outputs/part3/sweep_results.json` com o progresso completo das 36
+combinações), duas métricas por configuração:
+
+| Célula | T | perda de validação | erro na oclusão longa (24 quadros) |
+|---|---|---|---|
+| RNN | 4 | 0.000049 ± 0.000000 | 0.0450 ± 0.0000 |
+| RNN | 8 | 0.000069 ± 0.000000 | 0.0445 ± 0.0000 |
+| RNN | 16 | 0.000098 ± 0.000001 | 0.0365 ± 0.0007 |
+| RNN | 32 | 0.000122 ± 0.000000 | 0.0293 ± 0.0005 |
+| LSTM | 4 | 0.000049 ± 0.000000 | 0.0450 ± 0.0000 |
+| LSTM | 8 | 0.000069 ± 0.000000 | 0.0448 ± 0.0002 |
+| LSTM | 16 | 0.000099 ± 0.000000 | 0.0382 ± 0.0004 |
+| LSTM | 32 | 0.000121 ± 0.000001 | 0.0297 ± 0.0003 |
+| GRU | 4 | 0.000049 ± 0.000000 | 0.0450 ± 0.0000 |
+| GRU | 8 | 0.000069 ± 0.000000 | 0.0438 ± 0.0003 |
+| GRU | 16 | 0.000097 ± 0.000000 | 0.0339 ± 0.0005 |
+| GRU | 32 | 0.000119 ± 0.000000 | **0.0275** ± 0.0003 |
+
+A perda de validação (mesma janela do treino) não diferencia as células em
+nenhum T. O erro na sonda de oclusão longa (fixa, 24 quadros, maior que a
+maioria dos T testados) sim diferencia, e a vantagem do GRU **cresce** com
+T — exatamente onde a dependência de longo alcance passa a importar.
+
+**Resposta à pergunta específica** ("onde a RNN simples quebra, bate com a
+história de gradiente que some?"): sim. A curva direta de
+`||∂L/∂h_{t-k}||` (`outputs/part3/02_gradiente_que_some.png`, T=32,
+checkpoints seed=0) mostra a RNN simples caindo de ~10⁻³ a **zero
+numérico** em 16 passos pra trás, enquanto o GRU mantém gradiente
+mensurável até os 30 passos inteiros — bate com o mecanismo exato dos
+slides de aula (RNN simples: `h_t = tanh(W·[h_{t-1};x_t])`, o gradiente
+envolve multiplicar por `W^T` repetidamente, decaindo geometricamente se o
+maior valor singular de `W` é menor que 1; GRU/LSTM: o caminho dominante é
+multiplicação elemento-a-elemento por um portão aprendido, não uma
+potência de matriz fixa, evitando o colapso).
+
+**Obstáculo de engenharia real, documentado:** a primeira tentativa de
+rodar as 36 combinações parecia travar — o processo tinha acumulado
+18.063s de CPU em só 45min de relógio. Causa: o PyTorch paraleliza
+automaticamente em várias threads mesmo operações minúsculas (o modelo
+inteiro tem ~14k parâmetros, rodado passo a passo num laço Python), e o
+custo de sincronizar threads ficava maior que a conta em si. Corrigido com
+`torch.set_num_threads(1)` no topo do script (confirmado: uso de CPU foi
+de quase 0% pra ~96%). O script também salva o progresso incrementalmente
+em `sweep_results.json`, retomando de onde parou se interrompido.
