@@ -278,3 +278,35 @@ expôs (switches/fragmentação alta em cenas densas) vem de outro lugar —
 ambiguidade de identidade entre pessoas próximas e morte de track por
 oclusão longa — problemas que um modelo de **movimento puro** (sem
 informação de aparência, a Trilha B que não escolhemos) não ataca.
+
+**Teste direcionado: dá pra demonstrar o mecanismo em dado real?**
+(`scripts/part2_frame_subsampling_demo.py`,
+`outputs/part2/06_subamostragem_frame_rate.png`). Se o motivo do ganho ser
+pequeno é "o MOT17 vive no regime fácil do sweep", a previsão natural é:
+empurrando o MOT17 pro regime difícil (subamostrando quadros — mantém 1 a
+cada *k*, o que multiplica o deslocamento real por quadro por ~*k*, sem
+retreinar nada), o MotionGRU deveria abrir vantagem clara sobre o baseline.
+
+**Essa previsão NÃO se confirmou.** Testamos *k* ∈ {1,2,3,4,5,8} nas 4
+sequências: o resultado é ruidoso, sem vantagem crescente e consistente
+pro MotionGRU — no MOT17-11, ele chega a ficar bem pior no *k* mais
+agressivo (IDF1 -0.060 vs. baseline). Duas razões, ambas informativas:
+
+1. O MotionGRU não recebe ∆t como entrada (decisão da Parte 2) e foi
+   treinado só no MOT17-02 (a sequência de MENOR deslocamento nativo, 0.010).
+   Ele aprendeu a prever resíduos calibrados pra esse deslocamento mínimo, e
+   não tem nenhum mecanismo pra reescalar a extrapolação quando o ∆t efetivo
+   muda — ele continua prevendo resíduos pequenos mesmo quando o objeto
+   realmente andou mais, continuando perto de "velocidade quase zero" errado.
+2. Subamostrar dado real mexe em três eixos ao mesmo tempo (desloca mais,
+   reduz o nº de quadros, muda a duração efetiva de cada oclusão em
+   quadros), diferente do sweep sintético da Parte 0 que isolava só a
+   velocidade. Prova disso: nem o baseline sozinho degrada de forma limpa
+   com *k* (ex. MOT17-09: 0.476→0.508→0.504→0.443→...).
+
+**Isso não invalida o mecanismo — refina a resposta.** O enunciado da
+Parte 5 (opcional, não escolhida) pergunta exatamente isso: *"por que um
+modelo de movimento aprendido em ∆t fixo quebra quando ∆t muda? Alimentar
+∆t na recorrência resolveria?"*. Este teste é evidência empírica direta
+de que sim, quebra — e exatamente pela ausência de ∆t na entrada, uma
+limitação de arquitetura já conhecida, não uma falha de implementação.

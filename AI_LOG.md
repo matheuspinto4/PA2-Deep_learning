@@ -216,6 +216,32 @@ que não escolhemos, atacaria). Isso vira um ponto central e defensável da
 apresentação: entender os limites do que a trilha escolhida pode resolver é
 tão importante quanto o número de IDF1 em si.
 
+**Tentei demonstrar o mecanismo em dado real, e não deu certo — e isso foi
+mais valioso do que se tivesse dado.** O enunciado pede pra explicar "em
+que aspecto" a representação melhora o fracasso da Parte 1; como o ganho na
+taxa nativa é pequeno/nulo, pedi pra testar uma previsão direta: se o
+motivo é "o MOT17 vive no regime fácil do sweep de velocidade", subamostrar
+os quadros do MOT17 real (manter 1 a cada k) deveria empurrar pro regime
+difícil e abrir vantagem clara pro MotionGRU. Implementei, rodei em 4
+sequências x 6 valores de k, e a previsão **não se confirmou**: resultado
+ruidoso, sem vantagem crescente, e às vezes bem pior (MOT17-11, k=8:
+-0.060 de IDF1). Antes de descartar como "deu errado", investiguei o
+porquê: o MotionGRU não recebe ∆t como entrada (decisão da Parte 2) e foi
+treinado só no MOT17-02 (a sequência de MENOR deslocamento nativo de
+todas, 0.010) — ele aprendeu resíduos calibrados pra esse deslocamento
+mínimo e não tem como reescalar a extrapolação quando o ∆t efetivo muda
+por causa da subamostragem. Isso bate EXATAMENTE com a pergunta que o
+enunciado da Parte 5 (que não escolhemos) antecipa: "um modelo de
+movimento aprendido em ∆t fixo quebra quando ∆t muda? alimentar ∆t
+resolveria?" — agora temos evidência empírica direta de que sim, quebra,
+e exatamente por esse motivo. Reformulei a resposta da Parte 2 pra ficar
+mais precisa: o mecanismo é real (provado no sintético, onde isolamos só
+velocidade), mas reproduzir esse ganho em dado real via uma manipulação
+ingênua não funciona out-of-the-box, porque subamostrar mistura vários
+eixos de dificuldade ao mesmo tempo (diferente do botão único do sweep
+sintético) e porque o modelo nunca foi treinado pra generalizar entre
+∆t diferentes.
+
 ## Próximas entradas
 
 Vamos continuar registrando aqui conforme avançamos para a Parte 3
