@@ -8,3 +8,5 @@ Pillow==11.0.0
 pytest==9.1.1
 jupyter
 albumentations
+imageio==2.37.4
+imageio-ffmpeg==0.6.0

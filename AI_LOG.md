@@ -367,7 +367,67 @@ velocidade nem qualidade de detecção isoladamente.
 Com isso, as Partes 0 a 5 do enunciado estão todas implementadas,
 documentadas e com testes passando.
 
+## Notebook de inferência (`inferencia.ipynb`)
+
+Faltava o último item da tabela de entregáveis: "recebe o caminho de uma
+sequência qualquer, devolve o vídeo com as identidades coloridas de forma
+consistente e a contagem de objetos únicos. Roda sem retreinar." Reaproveitei
+`MotionRNNTracker` + `checkpoints/motion_gru_mot17.pt` tal qual -- nenhum
+código novo de tracking, só orquestração: carregar sequência, detectar
+(pública se existir `det.txt`, senão torchvision como fallback genérico),
+rodar o tracker, desenhar e codificar o vídeo.
+
+**Decisão: cor por ID via roda de matiz com razão áurea**
+(`hsv_to_rgb((id * 0.618...) % 1, ...)`), não um colormap categórico tipo
+`tab10` (usado na galeria de falhas da Parte 4). Com só 3 tracks por painel
+o `tab10` é suficiente e mais legível; aqui uma sequência real tem dezenas
+de IDs (70 no MOT17-09 inteiro) e `tab10 % 10` faria a cor se repetir a
+cada 10 identidades -- duas pessoas sem relação nenhuma ficariam com a
+mesma cor no mesmo quadro. A razão áurea distribui os matizes de forma
+guloso-uniforme conforme mais IDs aparecem, sem precisar saber de
+antemão quantos vão existir.
+
+**Decisão: detecção pública como caminho padrão, torchvision como
+fallback.** O enunciado pede "qualquer sequência", o que em princípio
+significa qualquer vídeo, nem que seja sem nenhuma anotação prévia. Mas
+rodar o Faster R-CNN do torchvision em CPU em todos os quadros de uma
+sequência inteira (~5-6s/quadro, já medido na Parte 1) levaria a maior
+parte de uma hora só de inferência de detecção -- inviável pra reexecutar
+num notebook de demonstração. Resolvido com uma bifurcação: se a pasta
+tiver `det/det_*.txt` (as 4 sequências do projeto têm), usa a detecção
+pública (segundos, já que o tracker em si é um GRU pequeno); só cai no
+torchvision se for uma sequência de fato nova sem nenhum arquivo de
+detecção, e nesse caso capa em `MAX_FRAMES_FALLBACK=150` quadros por
+padrão pra manter o notebook executável em tempo de apresentação.
+
+**Bug de ambiente encontrado e contornado, não corrigido na causa:** a
+primeira execução do notebook (via `jupyter nbconvert --execute`) saiu
+com todo `print()` que tinha acento corrompido no arquivo `.ipynb` salvo
+(`"Sequ�ncia"` em vez de `"Sequência"`) -- não um problema de exibição no
+terminal, o caractere de substituição ficava gravado no JSON do notebook
+mesmo lendo de volta com `encoding="utf-8"`. Isolei a causa: o texto-fonte
+das células (escrito direto em UTF-8) sempre ficou correto; só o *output*
+capturado do kernel ficava corrompido. Tentei forçar `PYTHONUTF8=1` e
+`PYTHONIOENCODING=utf-8` no processo que chama o `nbconvert` -- o kernel
+confirmou enxergar as duas variáveis e reportar `sys.stdout.encoding`
+como UTF-8, e ainda assim o byte gravado continuava errado, o que aponta
+pra um bug mais fundo no pipeline de captura de stdout do `ipykernel`
+nesse Windows específico (provavelmente o canal ZMQ decodificando com o
+codepage do console em algum ponto antes de chegar no `OutStream`), não
+pra configuração de encoding do processo Python em si. Sem tempo pra caçar
+isso dentro do `ipykernel`, contornei: os `print()` do notebook saem sem
+acento (ASCII puro), enquanto o markdown (texto-fonte estático, nunca passa
+pelo stdout do kernel) e o texto desenhado nos quadros do vídeo (escrito
+direto em memória via `PIL.ImageDraw`, também nunca passa por stdout)
+continuam com acentuação normal -- confirmado visualmente inspecionando um
+quadro do vídeo exportado.
+
+Com isso, todos os entregáveis da tabela do enunciado (repositório,
+README, `metrics.py`, `AI_LOG.md`, `inferencia.ipynb`, checkpoint) estão
+no repositório.
+
 ## Próximas entradas
 
-Com as 6 partes do enunciado completas, as próximas entradas (se houver)
-serão sobre polimento final da apresentação, não mais sobre partes novas.
+Com as 6 partes do enunciado e todos os entregáveis completos, as próximas
+entradas (se houver) serão sobre polimento final da apresentação ou sobre
+achados da auditoria de ponta a ponta, não mais sobre partes novas.

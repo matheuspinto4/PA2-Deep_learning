@@ -132,7 +132,17 @@ Parte 5 — teste de estresse de qualidade do detector:
 python scripts/part5_detector_stress_test.py
 ```
 
-Com isso, todas as partes do enunciado (0 a 5) estão implementadas.
+Notebook de inferência (entregável `inferencia.ipynb` — vídeo com identidades
+coloridas + contagem de objetos únicos, sem retreinar):
+
+```bash
+jupyter notebook notebooks/inferencia.ipynb
+# ou, pra rodar de ponta a ponta sem abrir a UI:
+jupyter nbconvert --to notebook --execute --inplace notebooks/inferencia.ipynb
+```
+
+Com isso, todas as partes do enunciado (0 a 5) e todos os entregáveis estão
+implementados.
 
 ## Decisões registradas
 
@@ -517,3 +527,31 @@ duas, e o MotionGRU amplifica marginalmente mais que o baseline (1.09 vs.
 1.07) — consistente com o achado da Parte 2 de que cenas densas são onde
 qualquer ruído extra (de detecção ou de um resíduo de movimento aprendido)
 tem mais chance de confundir o casamento com o vizinho errado.
+
+## Notebook de inferência (`notebooks/inferencia.ipynb`)
+
+Entregável explícito do enunciado: recebe o caminho de uma sequência
+(`SEQ_DIR`, única variável que precisa mudar) e devolve um vídeo `.mp4` com
+as caixas coloridas por identidade — cor determinística por ID (roda de
+matiz via razão áurea), **consistente do primeiro ao último quadro em que a
+track aparece** — e imprime a contagem de objetos únicos rastreados. Roda
+**sem retreinar**: só carrega `checkpoints/motion_gru_mot17.pt` e faz
+inferência com o mesmo `MotionRNNTracker` das Partes 2–5 (`max_age=15`).
+
+Detecção: se a sequência tiver `det/det_<VARIANTE>.txt` (como as 4 do
+projeto), usa a detecção pública (rápido — segundos pra sequência inteira,
+já que o tracker em si é só um GRU pequeno). Se não houver (uma sequência
+nova de verdade), cai automaticamente no detector pré-treinado do
+torchvision (`pa2/torch_detector.py`), limitado a `MAX_FRAMES_FALLBACK`
+quadros por padrão por ser ~5-6s/quadro em CPU (ver nota na Parte 1).
+
+Testado de ponta a ponta em MOT17-09 (525 quadros): 70 objetos únicos
+rastreados, vídeo salvo em `outputs/inferencia/` (fora do git —
+`*.mp4` no `.gitignore`, igual aos demais artefatos binários grandes;
+reproduzível rodando o notebook).
+
+Nota de ambiente: os `print()` do notebook saem sem acento de propósito —
+o kernel Jupyter neste Windows corrompe caracteres acentuados no stdout
+capturado pelo `nbconvert` (bug de console/codepage do SO, não do código);
+o texto desenhado nos quadros do vídeo e o markdown continuam acentuados
+normalmente, pois nunca passam por esse pipeline.
