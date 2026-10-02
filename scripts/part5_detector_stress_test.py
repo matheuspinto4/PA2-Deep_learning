@@ -136,10 +136,10 @@ def main():
 
 def plot_results(results):
     names = [n for n, _, _ in SEQUENCES]
-    fig, axes = plt.subplots(1, len(names), figsize=(5 * len(names), 4.5), sharey=True)
+    fig, axes = plt.subplots(2, 2, figsize=(11, 9))
     x = np.arange(len(INTENSITY_ORDER))
 
-    for ax, name in zip(axes, names):
+    for ax, name in zip(axes.flat, names):
         rows = {r["intensity"]: r for r in results if r["name"] == name}
         rows = [rows[i] for i in INTENSITY_ORDER]
 
@@ -152,12 +152,13 @@ def plot_results(results):
 
         ax.set_xticks(x)
         ax.set_xticklabels(INTENSITY_ORDER)
+        ax.set_xlabel("intensidade da degradação")
+        ax.set_ylabel("score")
         ax.set_title(name, fontsize=11)
         ax.set_ylim(0, 1.05)
         ax.grid(alpha=0.3)
+        ax.legend(fontsize=8, loc="lower left")
 
-    axes[0].set_ylabel("score")
-    axes[0].legend(fontsize=8, loc="lower left")
     plt.suptitle("Parte 5 — degradação do detector em 3 intensidades (sem retreinar, mesmo checkpoint)", fontsize=13)
     plt.tight_layout()
     out_path = OUT_DIR / "01_degradacao_detector.png"
