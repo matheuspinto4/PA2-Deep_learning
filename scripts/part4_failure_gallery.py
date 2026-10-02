@@ -177,14 +177,24 @@ def render_clip(seq, gt, pred_tracks, predicted_box_by_frame, center_frame, gt_i
     pred_colors = {pid: cmap(i % 10) for i, pid in enumerate(pred_ids_seen)}
 
     n = len(frames)
-    fig, axes = plt.subplots(1, n, figsize=(3.0 * n, 4.2))
-    if n == 1:
-        axes = [axes]
+    nrows = 3
+    ncols = int(np.ceil(n / nrows))
+    crop_h, crop_w = crop_y1 - crop_y0, crop_x1 - crop_x0
+    panel_w = 2.8
+    aspect = (crop_h / crop_w) if crop_w > 0 else 1.3
+    aspect = min(aspect, 1.6)  # pessoas em pé dão caixas bem altas/finas -- sem isso a figura
+    # inteira (3 linhas) fica gigantesca e esticada verticalmente pra caber a proporção exata
+    panel_h = panel_w * aspect
+    fig, axes = plt.subplots(nrows, ncols, figsize=(panel_w * ncols, panel_h * nrows))
+    axes = np.atleast_2d(axes).reshape(nrows, ncols)
+    for ax in axes.flat:  # apaga painéis sobrando (quando n não é múltiplo de 3)
+        ax.axis("off")
 
-    for ax, f in zip(axes, frames):
+    for idx, f in enumerate(frames):
+        ax = axes[idx // ncols, idx % ncols]
         img = np.array(Image.open(seq.frame_path(f)).convert("RGB"))
         crop = img[int(crop_y0):int(crop_y1), int(crop_x0):int(crop_x1)]
-        ax.imshow(crop)
+        ax.imshow(crop, aspect="auto")  # preenche o painel (que pode ter sido limitado em altura/largura acima)
         ax.set_title(f"quadro {f}", fontsize=10)
         ax.axis("off")
 
@@ -212,10 +222,10 @@ def render_clip(seq, gt, pred_tracks, predicted_box_by_frame, center_frame, gt_i
                 cx, cy = to_crop(x, y)
                 ax.add_patch(plt.Rectangle((cx, cy), w, h, fill=False, edgecolor=pred_colors[pid], linewidth=1.3, linestyle=":"))
 
-    fig.suptitle(title, fontsize=12)
-    plt.tight_layout()
+    fig.suptitle(title, fontsize=11, wrap=True)
+    plt.subplots_adjust(left=0.01, right=0.99, top=0.90, bottom=0.01, wspace=0.04, hspace=0.12)
     out_path = OUT_DIR / out_name
-    fig.savefig(out_path, dpi=120)
+    fig.savefig(out_path, dpi=140)
     plt.close(fig)
     print(f"[ok] figura salva em {out_path}")
 
