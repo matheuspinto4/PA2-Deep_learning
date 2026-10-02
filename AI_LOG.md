@@ -285,7 +285,58 @@ DUAS métricas que desenhamos (perda de validação, que não deveria
 diferenciar as células, e erro de oclusão longa, que deveria) se
 comportaram exatamente como a teoria prevê — e não só uma das duas.
 
+## Parte 4 — Galeria de falhas e horizonte de memória
+
+**Reli o enunciado de novo antes de implementar, e bom que fiz isso.**
+Minha lembrança inicial da Parte 4 (do começo da conversa) estava errada
+em um ponto concreto: achei que eram "pelo menos 6 falhas, cobrindo 3
+categorias". Reextraí o texto exato do PDF antes de começar e são **3
+trechos**, cada um só com uma figura + diagnóstico -- sem exigência de 3
+categorias diferentes (fiz variedade mesmo assim, mas não era obrigatório).
+Isso evitou eu construir 2x mais galeria do que o pedido.
+
+**O experimento empírico de sobrevivência saiu ruidoso e sem padrão na
+primeira tentativa** (max_age=5, 15 e 25 davam quase o mesmo resultado,
+contra a intuição). Em vez de aceitar e seguir, investiguei: a oclusão
+*roteirizada* do gerador da Parte 0 liga duração a velocidade relativa por
+construção (`rel_speed = r_safe/half` -- a mesma descoberta de meses atrás,
+na investigação de por que o eixo de duração de oclusão do sweep da Parte 0
+não degradava de forma limpa). Usar esse mecanismo aqui confundia "duração
+do buraco" com "velocidade do objeto", e eu já sabia (Parte 2) que
+velocidade sozinha já derruba o tracker -- estava medindo duas coisas ao
+mesmo tempo sem perceber. Corrigi forçando um buraco de detecção de duração
+EXATA, num objeto devagar o tempo todo, desacoplando as duas variáveis de
+verdade. Só depois disso o resultado saiu limpo (sobrevivência despencando
+exatamente em max_age+1).
+
+**A galeria de falhas também teve um bug de visualização que só vi
+olhando a imagem, não só o código.** A primeira versão desenhava qualquer
+track prevista com IoU>0.1 na região recortada -- em uma cena tão densa
+quanto o MOT17-02 (31 pessoas/quadro), isso pegava tracks vizinhas sem
+nenhuma relação com o evento de ID switch que eu queria ilustrar (a
+legenda dizia "ID 5 morre, nasce ID 313" mas a imagem só mostrava "pred
+4" o tempo todo). Corrigi pra desenhar só os pred_ids EXATOS do evento
+minerado, não qualquer coisa com sobreposição geométrica. Reaproveitei a
+função interna de casamento do próprio `metrics.py`
+(`_match_frame_with_continuity`) pra minerar os eventos com precisão de
+quadro, em vez de procurar falhas "a olho" no vídeo.
+
+**O horizonte analítico do modelo final (k=7) saiu bem menor que o k~30
+do GRU na ablação da Parte 3.** Antes de reportar isso como contraditório,
+percebi a explicação: a Parte 2 treinou com janela T=16, a Parte 3 testou
+T=32 -- o horizonte aprendido parece acompanhar a janela de treino usada,
+não só a célula. Achado que amarra as Partes 2, 3 e 4 entre si.
+
+**A correção funcionou de primeira (max_age 5->15), e isso também mereceu
+checagem.** IDF1 melhorou nas 4 sequências -- um resultado "bom demais"
+que pedi pra conferir com cuidado antes de aceitar: as fragmentações
+subiram em 3/4 sequências junto com a melhora de IDF1, o que é consistente
+(deixar tracks "penduradas" mais tempo cria mais transições
+tracked->untracked->tracked) e não esconde o resultado positivo, só
+mostra o efeito colateral honesto -- registrei os dois lados, não só o
+número que eu queria ver.
+
 ## Próximas entradas
 
-Vamos continuar registrando aqui conforme avançamos para a Parte 4
-(galeria de falhas e horizonte de memória) em diante.
+Vamos continuar registrando aqui conforme avançamos para a Parte 5
+(teste de estresse) em diante.

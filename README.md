@@ -117,7 +117,16 @@ retoma de onde parou, em vez de refazer tudo.
 python scripts/part3_ablation.py
 ```
 
-(demais comandos — Parte 4 em diante — serão adicionados conforme forem
+Parte 4 — galeria de falhas, horizonte de memória (analítico + empírico),
+e a correção:
+
+```bash
+python scripts/part4_failure_gallery.py
+python scripts/part4_memory_horizon.py
+python scripts/part4_correction.py
+```
+
+(demais comandos — Parte 5 em diante — serão adicionados conforme forem
 implementados.)
 
 ## Decisões registradas
@@ -390,3 +399,71 @@ custo de sincronizar threads ficava maior que a conta em si. Corrigido com
 `torch.set_num_threads(1)` no topo do script (confirmado: uso de CPU foi
 de quase 0% pra ~96%). O script também salva o progresso incrementalmente
 em `sweep_results.json`, retomando de onde parou se interrompido.
+
+## Parte 4 — Galeria de falhas e horizonte de memória
+
+### Galeria de falhas (3 trechos, minerados automaticamente)
+
+`scripts/part4_failure_gallery.py` roda o `MotionRNNTracker` (modelo final,
+`max_age=5`, a config "antes" da correção) de verdade no MOT17-02 com
+detecção SDP, e reaproveita a lógica interna de casamento quadro-a-quadro
+do `metrics.py` (`_match_frame_with_continuity`) pra achar **exatamente**
+em que quadro e entre quais identidades cada ID switch acontece — não
+garimpado a olho.
+
+| Falha | Figura | Diagnóstico |
+|---|---|---|
+| 1 — oclusão longa | `outputs/part4/04a_falha_oclusao_longa.png` | Objeto gt=3 fica sem detecção por **191 quadros** (≫ max_age=5) — a track morre por regra de nascimento/morte antes mesmo do horizonte de memória do modelo (k≈7, ver abaixo) virar o fator limitante; ao reaparecer, vira ID novo. |
+| 2 — troca por proximidade | `outputs/part4/04b_falha_troca_proximidade.png` | Dois objetos reais (gt 32, gt 33) passam perto o suficiente que o casamento por IoU troca os rótulos **no mesmo quadro, sem nenhum buraco de detecção envolvido** — mecanismo diferente: gargalo de identidade em cena densa (já diagnosticado na Parte 2), não de memória. |
+| 3 — oclusão curta já custa caro | `outputs/part4/04c_falha_oclusao_curta.png` | Um buraco de só **14 quadros** (perto da mediana real do dataset, 15) já troca o ID — mostra que a margem é pequena mesmo fora do caso extremo. |
+
+### Horizonte de memória efetivo — analítica
+
+`scripts/part4_memory_horizon.py`, `outputs/part4/01_horizonte_analitico.png`:
+`||∂L/∂h_{t-k}||` no **modelo final** (`motion_gru_mot17.pt`), numa trajetória
+real do MOT17-02. Horizonte efetivo (gradiente cai abaixo de 1% do valor em
+k=0): **k=7**. Isso é bem menor que o k≈30 do GRU medido na ablação da
+Parte 3 (que foi treinado com janela T=32) — o horizonte aprendido parece
+acompanhar a **janela de treino** (nossa Parte 2 usou T=16), não só o tipo
+de célula.
+
+### Horizonte de memória efetivo — empírica
+
+`outputs/part4/02_horizonte_empirico.png`: taxa de sobrevivência de
+identidade vs. duração da oclusão, com o tracker de verdade. Para isolar a
+variável (duração) sem confundir com velocidade relativa — a oclusão
+*roteirizada* do gerador da Parte 0 liga as duas por construção —, aqui a
+gente **força um buraco de detecção de duração exata**, num objeto que se
+move devagar o tempo todo.
+
+Resultado: com `max_age=5` (atual), a sobrevivência despenca a 0 exatamente
+em `d=6` (passou do limite) e nunca mais sobe. Com `max_age=15` ou `25`, a
+sobrevivência se estende bem mais, mas as duas curvas quase coincidem entre
+si — um **segundo limite** aparece (deriva da previsão em free-running),
+distinto do `max_age`. Comparado com a distribuição **real** de duração de
+oclusão do MOT17 (mediana = 15 quadros; **78%** dos eventos duram mais que
+o `max_age=5` atual).
+
+### A correção
+
+`scripts/part4_correction.py`, `outputs/part4/03_correcao_antes_depois.png`:
+diagnóstico → `max_age=5` é pequeno demais pro MOT17 real. Correção:
+`max_age=15` (não 25 — a sonda empírica mostrou que 25 mal ajuda mais que
+15, satura no segundo limite acima; 15 já casa com a mediana real de
+oclusão do dataset).
+
+Antes/depois, **mesmo checkpoint**, mesmas 4 sequências, só o `max_age` do
+tracker muda:
+
+| Sequência | IDF1 antes | IDF1 depois | razão ids antes | razão ids depois |
+|---|---|---|---|---|
+| MOT17-09 | 0.493 | 0.499 | 3.58 | 2.69 |
+| MOT17-11 | 0.572 | 0.581 | 2.64 | 2.29 |
+| MOT17-02 | 0.323 | 0.343 | 7.60 | 5.55 |
+| MOT17-04 | 0.655 | 0.690 | 2.57 | 1.81 |
+
+IDF1 melhora nas 4 sequências (+0.006 a +0.036), e a razão de identidades
+cai bastante em todas. Efeito colateral honesto: fragmentações **sobem**
+um pouco em 3 das 4 sequências — deixar tracks "penduradas" por mais tempo
+cria mais oportunidades de transição tracked→untracked→tracked, mesmo
+quando a identidade final continua certa.
