@@ -126,8 +126,13 @@ python scripts/part4_memory_horizon.py
 python scripts/part4_correction.py
 ```
 
-(demais comandos — Parte 5 em diante — serão adicionados conforme forem
-implementados.)
+Parte 5 — teste de estresse de qualidade do detector:
+
+```bash
+python scripts/part5_detector_stress_test.py
+```
+
+Com isso, todas as partes do enunciado (0 a 5) estão implementadas.
 
 ## Decisões registradas
 
@@ -473,3 +478,42 @@ cai bastante em todas. Efeito colateral honesto: fragmentações **sobem**
 um pouco em 3 das 4 sequências — deixar tracks "penduradas" por mais tempo
 cria mais oportunidades de transição tracked→untracked→tracked, mesmo
 quando a identidade final continua certa.
+
+## Parte 5 — Teste de estresse: qualidade do detector
+
+Escolhemos **qualidade do detector** (não queda de frame rate). Feito **sem
+retreinar**, em cima do modelo final (`motion_gru_mot17.pt`, `max_age=15`
+já com a correção da Parte 4). Reaproveita `pa2.synthetic.simulate_detections`
+(construído na Parte 0 — o próprio enunciado avisa que esse é "exatamente
+um experimento da Parte 5"): em vez do det.txt público (ruído fixo, não
+controlável), geramos detecções a partir do `gt.txt` + visibilidade real do
+MOT17, com ruído que a gente controla, em **3 intensidades** (leve/média/
+severa — `drop_prob`, ruído de coordenada/tamanho e taxa de falsos
+positivos crescentes), 3 seeds cada, nas 4 sequências.
+
+*(figura: `outputs/part5/01_degradacao_detector.png`)* — mAP (detecção) e
+IDF1 (baseline ingênuo vs. MotionGRU) praticamente coincidem em quase todas
+as 12 combinações (sequência × intensidade): conforme o detector piora, as
+três curvas caem juntas.
+
+*(figura: `outputs/part5/02_absorve_ou_amplifica.png`)* — pergunta do
+enunciado: o modelo temporal **absorve ou amplifica** a falha do detector?
+Medimos a razão `(queda de IDF1) / (queda de mAP)` do cenário limpo pro
+severo: um valor **abaixo de 1** significa que o IDF1 cai menos que o mAP
+(absorve); **acima de 1**, cai mais (amplifica).
+
+| Sequência | razão baseline | razão MotionGRU |
+|---|---|---|
+| MOT17-09 | 0.95 | 0.94 |
+| MOT17-11 | 0.92 | 0.94 |
+| MOT17-02 | 0.97 | 0.97 |
+| MOT17-04 | 1.07 | 1.09 |
+
+Em 3 das 4 sequências, a razão fica perto de 1 pras duas trackers — nem
+absorve nem amplifica de forma marcante, a identidade degrada
+proporcionalmente à detecção. A exceção é o MOT17-04 (a sequência mais
+densa): ali a falha do detector **amplifica** um pouco (razão > 1) pras
+duas, e o MotionGRU amplifica marginalmente mais que o baseline (1.09 vs.
+1.07) — consistente com o achado da Parte 2 de que cenas densas são onde
+qualquer ruído extra (de detecção ou de um resíduo de movimento aprendido)
+tem mais chance de confundir o casamento com o vizinho errado.

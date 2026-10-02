@@ -336,7 +336,38 @@ tracked->untracked->tracked) e não esconde o resultado positivo, só
 mostra o efeito colateral honesto -- registrei os dois lados, não só o
 número que eu queria ver.
 
+## Parte 5 — Teste de estresse (qualidade do detector)
+
+**Decisão já estava travada desde o início da conversa** (escolhida junto
+com a trilha da Parte 2 e o eixo da Parte 3, antes de qualquer código): o
+enunciado pede pra escolher entre queda de frame rate ou qualidade do
+detector, e optei por qualidade do detector porque reaproveitava
+diretamente o simulador que já ia construir na Parte 0 -- e o próprio
+enunciado confirma isso explicitamente ("Note que isso é exatamente um
+experimento da Parte 5"), então não teve nova decisão a tomar aqui, só
+executar o que já estava planejado desde o começo.
+
+**Usei `max_age=15` (o valor corrigido na Parte 4), não o 5 original.**
+Pensei um pouco sobre isso antes de escrever o código: a Parte 5 fala em
+rodar "em cima do modelo final", e por essa altura do projeto o "final"
+de verdade já inclui a correção da Parte 4, não a config original quebrada
+que a gente mesma diagnosticou. Usar o 5 original teria sido tecnicamente
+mais simples (não precisava pensar nisso) mas intelectualmente
+inconsistente -- estaria testando um tracker que eu já sei que está pior
+do que o que realmente uso.
+
+**O resultado saiu limpo de cara, sem precisar de retrabalho** (diferente
+de quase todo experimento até agora): a razão queda-de-IDF1/queda-de-mAP
+ficou perto de 1 em 3 das 4 sequências, e destacou exatamente o MOT17-04
+(a sequência mais densa das 4, 45.3 ped/quadro) como a única onde a falha
+do detector amplifica -- consistente com o achado já repetido no projeto
+inteiro de que densidade é o fator que mais explica as dificuldades, não
+velocidade nem qualidade de detecção isoladamente.
+
+Com isso, as Partes 0 a 5 do enunciado estão todas implementadas,
+documentadas e com testes passando.
+
 ## Próximas entradas
 
-Vamos continuar registrando aqui conforme avançamos para a Parte 5
-(teste de estresse) em diante.
+Com as 6 partes do enunciado completas, as próximas entradas (se houver)
+serão sobre polimento final da apresentação, não mais sobre partes novas.
