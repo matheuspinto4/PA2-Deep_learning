@@ -138,3 +138,57 @@ def matched_hidden_size(cell_type: str, target_params: int, input_extra: int = 1
         if diff < best_diff:
             best_h, best_diff = h, diff
     return best_h
+
+
+def gradient_vanishing_curve(model: "MotionRNN", boxes: torch.Tensor, confs: torch.Tensor, observed_mask: torch.Tensor):
+    """||∂L/∂h_{T-2-k}|| em função de k, onde L é a perda da ÚLTIMA previsão
+    válida da sequência (feita no passo T-2, tentando acertar boxes[T-1] --
+    a previsão do passo T-1 tentaria prever um quadro T que não existe, por
+    isso o laço só roda até T-2, nunca gera essa previsão fora do range).
+    h.retain_grad() porque são tensores intermediários (não-folha), que não
+    guardam gradiente por padrão.
+
+    Essa é "a curva de gradiente que some, dos slides de treinamento de
+    RNN, no seu modelo e nos seus dados" que a Parte 4 pede como parte
+    analítica do horizonte de memória -- implementada aqui (não numa
+    história à parte) porque é reaproveitada tanto na ablação da Parte 3
+    quanto na Parte 4, no mesmo modelo final.
+    """
+    model.eval()
+    model.zero_grad()
+    B, T, _ = boxes.shape
+    state = model.init_hidden(B)
+    cur_box, cur_conf = boxes[:, 0], confs[:, 0]
+    hs = []
+    pred = None
+    for t in range(T - 1):  # produz previsões pra boxes[1..T-1], nunca além
+        state, pred = model.step(state, cur_box, cur_conf)
+        h = state[0]
+        h.retain_grad()
+        hs.append(h)
+        obs_next = observed_mask[:, t + 1].unsqueeze(-1).float()
+        cur_box = obs_next * boxes[:, t + 1] + (1 - obs_next) * pred
+        cur_conf = observed_mask[:, t + 1].float() * confs[:, t + 1]
+
+    loss_fn = nn.SmoothL1Loss()
+    final_loss = loss_fn(pred, boxes[:, -1])  # última previsão (passo T-2) vs. última caixa real
+    final_loss.backward()
+
+    norms = [h.grad.norm().item() if h.grad is not None else 0.0 for h in hs]
+    norms = norms[::-1]  # norms[0] = ||dL/dh_{T-2}|| (k=0), norms[k] = ||dL/dh_{T-2-k}||
+    return norms
+
+
+def effective_memory_horizon(norms: list, threshold_frac: float = 0.01) -> int:
+    """Primeiro k em que a norma do gradiente cai abaixo de `threshold_frac`
+    do valor em k=0 -- um número concreto pro "horizonte de memória
+    efetivo" (a pergunta da Parte 4). Se nunca cai abaixo (gradiente
+    sobrevive até o fim da janela testada), retorna len(norms) (ou seja,
+    "pelo menos até aqui")."""
+    if not norms or norms[0] == 0:
+        return 0
+    thresh = norms[0] * threshold_frac
+    for k, n in enumerate(norms):
+        if n < thresh:
+            return k
+    return len(norms)

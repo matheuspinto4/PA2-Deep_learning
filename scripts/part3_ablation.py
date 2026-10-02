@@ -53,7 +53,7 @@ import numpy as np
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
-from pa2.models.motion_rnn import MotionRNN, matched_hidden_size
+from pa2.models.motion_rnn import MotionRNN, gradient_vanishing_curve, matched_hidden_size
 from pa2.synthetic import SyntheticVideoGenerator
 from pa2.trajectories import TrajectoryWindowDataset, extract_contiguous_trajectories, make_windows
 
@@ -296,38 +296,6 @@ def print_table(agg):
             a = agg[(ct, T)]
             print(f"{ct:6s} {T:4d}  {a['val_mean']:.6f} ± {a['val_std']:.6f}   "
                   f"{a['long_mean']:7.4f} ± {a['long_std']:.4f}")
-
-
-def gradient_vanishing_curve(model, boxes, confs, observed_mask):
-    """||∂L/∂h_{T-2-k}|| em função de k, onde L é a perda da ÚLTIMA previsão
-    válida da sequência (feita no passo T-2, tentando acertar boxes[T-1] --
-    a previsão do passo T-1 tentaria prever um quadro T que não existe, por
-    isso o laço só roda até T-2, nunca gera essa previsão fora do range).
-    h.retain_grad() porque são tensores intermediários (não-folha), que não
-    guardam gradiente por padrão."""
-    model.eval()
-    model.zero_grad()
-    B, T, _ = boxes.shape
-    state = model.init_hidden(B)
-    cur_box, cur_conf = boxes[:, 0], confs[:, 0]
-    hs = []
-    pred = None
-    for t in range(T - 1):  # produz previsões pra boxes[1..T-1], nunca além
-        state, pred = model.step(state, cur_box, cur_conf)
-        h = state[0]
-        h.retain_grad()
-        hs.append(h)
-        obs_next = observed_mask[:, t + 1].unsqueeze(-1).float()
-        cur_box = obs_next * boxes[:, t + 1] + (1 - obs_next) * pred
-        cur_conf = observed_mask[:, t + 1].float() * confs[:, t + 1]
-
-    loss_fn = nn.SmoothL1Loss()
-    final_loss = loss_fn(pred, boxes[:, -1])  # última previsão (passo T-2) vs. última caixa real
-    final_loss.backward()
-
-    norms = [h.grad.norm().item() if h.grad is not None else 0.0 for h in hs]
-    norms = norms[::-1]  # norms[0] = ||dL/dh_{T-2}|| (k=0), norms[k] = ||dL/dh_{T-2-k}||
-    return norms
 
 
 def plot_gradient_vanishing(T=32):
