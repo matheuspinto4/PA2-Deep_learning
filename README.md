@@ -52,6 +52,20 @@ AI_LOG.md                     # uso de IA no projeto
 
 ## Comandos
 
+**Um comando que treina, um comando que avalia** (tabela de entregáveis do
+enunciado). Pressupõem `data/MOT17/` já populado (ver download abaixo):
+
+```bash
+python scripts/train.py      # pré-treino sintético + treino no MOT17 -> checkpoints/motion_gru_mot17.pt
+python scripts/evaluate.py   # MotionGRU vs. baseline ingênuo, mesmas métricas e sequências, sem retreinar
+```
+
+São wrappers finos em cima de `part2_pretrain_synthetic.py` + `part2_train_mot17.py`
+(treino) e `part2_evaluate.py` (avaliação) — os mesmos scripts descritos em
+detalhe mais abaixo, só encadeados numa única chamada. As demais partes
+(0, 1, 3, 4, 5) são análises adicionais em cima do mesmo checkpoint, cada
+uma com seu próprio comando documentado a seguir.
+
 Testes (Parte 0 e 1):
 
 ```bash

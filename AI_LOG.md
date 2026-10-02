@@ -426,6 +426,44 @@ Com isso, todos os entregáveis da tabela do enunciado (repositório,
 README, `metrics.py`, `AI_LOG.md`, `inferencia.ipynb`, checkpoint) estão
 no repositório.
 
+## Auditoria de ponta a ponta contra o enunciado
+
+Pedi uma auditoria cética e completa do projeto inteiro contra o texto
+verbatim do PDF (não contra o que o README/AI_LOG *alegavam*): proibições,
+split, Partes 0-5 e a tabela de entregáveis, item por item, com evidência
+de arquivo:linha e inspeção visual das figuras/notebook executado, não só
+leitura de código. Resultado: tudo PASS, com uma única lacuna real —
+**a tabela de entregáveis pede "um comando que treina, um comando que
+avalia", e o que existia era uma lista de ~8 comandos separados por
+parte** (dois só pra treinar a Parte 2: pré-treino sintético + treino
+MOT17; mais cinco de avaliação/análise espalhados entre Partes 1, 3, 4 e
+5). Issotecnicamentebatia com o espírito do enunciado (cada parte É
+documentada com seu comando), mas não com a letra ("um comando").
+
+**Correção:** `scripts/train.py` e `scripts/evaluate.py`, wrappers finos
+que encadeiam os scripts existentes via `subprocess` (não reimplementam
+nada -- só orquestram chamadas na ordem certa). Decisão consciente de
+**não** reescrever `part2_pretrain_synthetic.py`/`part2_train_mot17.py`
+pra expor uma função `main()` importável: eles rodam tudo dentro de
+`if __name__ == "__main__":`, já testados e com os números finais do
+checkpoint atual documentados em todo o resto do projeto; refatorar isso
+agora, na véspera da apresentação, é risco sem benefício. `subprocess` dá
+o mesmo resultado (um comando, roda os dois passos em sequência) sem
+tocar em código que já funciona.
+
+Rodei `scripts/evaluate.py` de ponta a ponta pra confirmar: reproduz
+exatamente os números já documentados na Parte 2 (IDF1 base vs. motion nas
+4 sequências), sem nenhum `.backward()`/otimizador no caminho -- é
+avaliação pura. **Não** rodei `scripts/train.py` de ponta a ponta: um
+retreino completo (pré-treino de 40 épocas + 150 épocas no MOT17) levaria
+tempo considerável e, mais importante, arriscaria sobrescrever
+`checkpoints/motion_gru_mot17.pt` com pesos levemente diferentes (mesmo
+com `torch.manual_seed(0)` fixo, 150 épocas de treino têm superfície pra
+drift numérico) -- e esse checkpoint específico é o que todo número
+reportado nas Partes 2 a 5 e no `inferencia.ipynb` já usa. Validei o
+`train.py` por inspeção (mesma chamada de script que já roda isolada,
+só em sequência), não por execução.
+
 ## Próximas entradas
 
 Com as 6 partes do enunciado e todos os entregáveis completos, as próximas
